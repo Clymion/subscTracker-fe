@@ -1,20 +1,27 @@
-FROM node:20-slim
-
-WORKDIR /app
-
-RUN echo -e "\n\
-alias ll='ls -la --color'\n\
-" >> /root/.bashrc
+# ============ ベースイメージ ============
+FROM node:22-slim AS base
 
 RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install yarn v4
-RUN corepack enable && corepack prepare yarn@4.0.2 --activate
+RUN npm install -g pnpm
+USER node:node
 
-COPY package.json yarn.lock ./
+# ============ 開発ステージ ============
+FROM base AS development
 
-RUN yarn install
+WORKDIR /workspace
 
-CMD ["yarn", "dev"]
+USER node
+
+COPY package.json ./
+RUN pnpm install
+
+COPY . .
+
+RUN echo "alias ll='ls -l --color'" >> ~/.bashrc
+
+EXPOSE 5173
+
+CMD ["tail", "-f", "/dev/null"]

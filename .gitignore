@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .yarn/
+.pnpm-store/
+repomix-output*
