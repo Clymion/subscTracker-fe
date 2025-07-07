@@ -26,3 +26,4 @@ dist-ssr
 .yarn/
 .pnpm-store/
 repomix-output*
+.firebase

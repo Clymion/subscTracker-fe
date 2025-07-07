@@ -22,6 +22,15 @@ docker compose run -it app bash
 sudo chown $USER:$USER node_modules/
 ```
 
+### firebaseへのデプロイ
+```sh
+pnpm setup
+source /home/node/.bashrc
+pnpm -g i firebase-tools
+firebase login
+firebase init
+```
+
 ## 残課題
 - tailwindcss の`@tailwind`で生成されない
   - `npx shadcn@latest init`で生成される
