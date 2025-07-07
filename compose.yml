@@ -2,15 +2,20 @@ services:
   app:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile
+      dockerfile: docker/Dockerfile
     ports:
-      - "5173:5173"
+      - "5173:5173"  # Vite開発サーバー用
     volumes:
-      - .:/app
-      - node_modules:/app/node_modules
+      - .:/workspace:cached
+      # 匿名ボリューム: 名前付きボリュームにすると、root権限で作成されてしまう
+      - /workspace/node_modules
+      # pnpmキャッシュを永続化
+      - pnpm-store:/home/node/.local/share/pnpm/store
     environment:
       - NODE_ENV=development
-    command: yarn dev --host
+    tty: true
+    stdin_open: true
+    command: ["pnpm", "dev"]
 
 volumes:
-  node_modules:
+  pnpm-store:
