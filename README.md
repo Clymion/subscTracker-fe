@@ -31,6 +31,27 @@ firebase login
 firebase init
 ```
 
+## 初期化備忘録
+コンテナ内
+```bash
+yarn create vite . --template react-ts
+yarn install
+
+# Tailwind CSSのインストールと初期化
+yarn add -D tailwindcss postcss autoprefixer
+yarn tailwindcss init -p
+
+# Material UIのインストール
+yarn add @mui/material @emotion/react @emotion/styled
+yarn add @mui/icons-material
+
+# shadcn/uiの初期化
+npx shadcn-ui@latest init
+
+exit
+```
+
+
 ## 残課題
 - tailwindcss の`@tailwind`で生成されない
   - `npx shadcn@latest init`で生成される

@@ -16,7 +16,8 @@
 				"PKief.material-icon-theme",
 				"christian-kohler.path-intellisense",
 				"Gruntfuggly.todo-tree",
-				"github.copilot"
+				"github.copilot",
+				"GitHub.vscode-pull-request-github"
 			]
         }
     },
