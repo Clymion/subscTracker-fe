@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,9 +58,24 @@ const SubscriptionDetail = () => {
   }, [id]);
 
   // ラベルの切り替え
-  const toggleLabel = (label) => {
+  interface Subscription {
+    id: string;
+    name: string;
+    price: number;
+    currency: string;
+    frequency: string;
+    initialPaymentDate: Date;
+    nextPaymentDate: Date;
+    paymentMethod: string;
+    labels: string[];
+    url: string;
+    notes: string;
+    status: string;
+  }
+
+  const toggleLabel = (label: string) => {
     if (isEditing) {
-      setSubscription((prev) => ({
+      setSubscription((prev: Subscription) => ({
         ...prev,
         labels: prev.labels.includes(label)
           ? prev.labels.filter((l) => l !== label)
@@ -82,7 +97,7 @@ const SubscriptionDetail = () => {
         title: '更新完了',
         description: 'サブスクリプション情報を更新しました',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'エラー',
         description: '更新に失敗しました',

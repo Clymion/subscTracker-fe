@@ -21,9 +21,26 @@ import { ja } from 'date-fns/locale';
 
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 
-const SubscriptionDrawer = ({ open, onOpenChange }) => {
+interface SubscriptionForm {
+  name: string;
+  price: string;
+  currency: string;
+  frequency: string;
+  initialPaymentDate: Date | null;
+  paymentMethod: string;
+  labels: string[];
+  url?: string;
+  notes?: string;
+}
+
+interface SubscriptionDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => {
   // フォームの状態管理
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<SubscriptionForm>({
     name: '',
     price: '',
     currency: 'JPY',
@@ -39,7 +56,7 @@ const SubscriptionDrawer = ({ open, onOpenChange }) => {
   const availableLabels = ['動画', '音楽', 'エンタメ', 'クラウド', 'ビジネス', 'ストレージ'];
 
   // ラベルの選択/解除
-  const toggleLabel = (label) => {
+  const toggleLabel = (label: string) => {
     setFormData((prev) => ({
       ...prev,
       labels: prev.labels.includes(label)
@@ -49,7 +66,7 @@ const SubscriptionDrawer = ({ open, onOpenChange }) => {
   };
 
   // フォーム送信
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
     // TODO: API呼び出し
@@ -149,9 +166,9 @@ const SubscriptionDrawer = ({ open, onOpenChange }) => {
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={formData.initialPaymentDate}
+                    selected={formData.initialPaymentDate ?? undefined}
                     onSelect={(date) =>
-                      setFormData((prev) => ({ ...prev, initialPaymentDate: date }))
+                      setFormData((prev) => ({ ...prev, initialPaymentDate: date ?? null }))
                     }
                   />
                 </PopoverContent>

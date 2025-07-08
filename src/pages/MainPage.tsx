@@ -17,7 +17,7 @@ import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 
 import SortDialog from './SortDialog';
-import FilterDialog from './FilterDialog';
+import FilterDialog, { PayHistoryFilterOptions, SubscFilterOptions } from './FilterDialog';
 import SubscriptionDrawer from './SubscriptionDrawer';
 
 const MainPage = () => {
@@ -33,13 +33,7 @@ const MainPage = () => {
     // TODO: ソート処理の実装
   };
 
-  const handleFilter = (filterOptions: {
-    status: string[];
-    labels: string[];
-    priceMin: string;
-    priceMax: string;
-    currency: string;
-  }) => {
+  const handleFilter = (filterOptions: SubscFilterOptions | PayHistoryFilterOptions) => {
     console.log('Filter by:', filterOptions);
     // TODO: フィルター処理の実装
   };

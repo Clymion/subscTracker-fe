@@ -10,7 +10,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     // TODO: ログイン認証処理
     // 認証成功後にメイン画面へ遷移

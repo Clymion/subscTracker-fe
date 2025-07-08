@@ -130,7 +130,7 @@ const PaymentRecordDrawer = ({
   }, [paymentRecord, form]);
 
   // 選択されたサブスクリプションの情報を取得
-  const selectedSubscription = subscriptions.find((s) => s.id === form.watch('subscriptionId'));
+  // const selectedSubscription = subscriptions.find((s) => s.id === form.watch('subscriptionId'));
 
   // サブスクリプション変更時の処理
   const handleSubscriptionChange = (value: string) => {

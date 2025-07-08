@@ -22,7 +22,7 @@ const RegisterPage = () => {
     currency: 'JPY',
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // TODO: ユーザー登録処理
     // 登録成功後にログイン画面へ遷移
