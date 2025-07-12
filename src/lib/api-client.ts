@@ -1,20 +1,20 @@
 import { env } from '@/config/env';
-import { z } from 'zod';
+
+// TODO: `env`の名前が重複
 
 // APIエラーの型を定義
-const ApiErrorSchema = z.object({
-  status: z.number(),
-  message: z.string(),
-  errors: z.record(z.any()).optional(),
-});
-export type ApiError = z.infer<typeof ApiErrorSchema>;
+export type ApiError = {
+  status: number;
+  message: string;
+  errors?: Record<string, unknown>;
+};
 
 /**
  * カスタムAPIエラークラス
  */
 export class CustomApiError extends Error {
   status: number;
-  errors?: Record<string, any>;
+  errors?: Record<string, unknown>;
 
   constructor({ status, message, errors }: ApiError) {
     super(message);

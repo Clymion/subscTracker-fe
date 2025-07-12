@@ -1,22 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tag, ChevronLeft, Plus, Pencil, Trash2 } from 'lucide-react';
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
+import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import { Tag, ChevronLeft, Plus, Pencil, Trash2 } from 'lucide-react';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +16,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const LabelSettings = () => {
   const navigate = useNavigate();

@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, ChevronLeft, AlertCircle } from 'lucide-react';
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
+import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import { User, ChevronLeft, AlertCircle } from 'lucide-react';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -13,10 +16,6 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +25,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const ProfileSettings = () => {
   const navigate = useNavigate();

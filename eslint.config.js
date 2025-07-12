@@ -3,6 +3,7 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
+import importPlugin from 'eslint-plugin-import'
 
 export default tseslint.config(
   { ignores: ['dist'] },
@@ -16,12 +17,37 @@ export default tseslint.config(
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
+      import: importPlugin,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
+      ],
+      "no-multiple-empty-lines": ["error", { "max": 1, "maxBOF": 0 }],
+      "import/order": [
+        "error",
+        {
+          "groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
+          "alphabetize": { "order": "asc" },
+          "newlines-between": "always",
+          // Reactなどのパスエイリアスを解決するために必要
+          "pathGroups": [
+            // Reactのインポートを最初に配置
+            {
+              "pattern": "react**",
+              "group": "external",
+              "position": "before"
+            },
+            {
+              "pattern": "@/**",
+              "group": "internal"
+            }
+          ],
+          // pathGroupsが正しく機能するために追加
+          "pathGroupsExcludedImportTypes": ["react"]
+        }
       ],
     },
   },

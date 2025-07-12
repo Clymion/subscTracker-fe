@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Globe, ChevronLeft, RefreshCcw, Info } from 'lucide-react';
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
+import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import { Globe, ChevronLeft, RefreshCcw, Info } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -13,10 +15,8 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 const CurrencySettings = () => {
   const navigate = useNavigate();

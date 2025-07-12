@@ -1,3 +1,5 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+
 import LoginPage from '@/features/auth/routes/LoginPage';
 import RegisterPage from '@/features/auth/routes/RegisterPage';
 import PaymentHistoryPage from '@/features/history/routes/PaymentHistoryPage';
@@ -10,7 +12,6 @@ import ProfileSettings from '@/features/settings/routes/ProfileSettings';
 import SettingsPage from '@/features/settings/routes/SettingsPage';
 import MainPage from '@/features/subscriptions/routes/MainPage';
 import SubscriptionDetail from '@/features/subscriptions/routes/SubscriptionDetail';
-import { Navigate, Route, Routes } from 'react-router-dom';
 
 const App = () => {
   return (

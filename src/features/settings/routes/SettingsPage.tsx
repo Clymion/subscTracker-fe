@@ -1,13 +1,15 @@
 // import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 // TODO: lucide-react -> mui-icons-material
-import { Settings, User, CreditCard, Bell, Tag, ChevronRight, Globe, Server } from 'lucide-react';
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
+
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
+import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import { Settings, User, CreditCard, Bell, Tag, ChevronRight, Globe, Server } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
