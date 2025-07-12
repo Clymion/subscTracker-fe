@@ -10,6 +10,7 @@ import CurrencySettings from '@/pages/settings/CurrencySettings';
 import PaymentMethodSettings from '@/pages/settings/PaymentMethodSettings';
 import NotificationSettings from '@/pages/settings/NotificationSettings';
 import LabelSettings from '@/pages/settings/LabelSettings';
+import BackendTestPage from '@/pages/BackendTestPage';
 
 import { Toaster } from "@/components/ui/toaster"
 
@@ -38,6 +39,9 @@ const App = () => {
 
           {/* 存在しないパスへのアクセスはホームにリダイレクト */}
           <Route path="*" element={<Navigate to="/home" replace />} />
+
+          {/* テスト用ルート */}
+          <Route path="/backend-test" element={<BackendTestPage />} />
 
           {/* /mainへのアクセスは/homeにリダイレクト（後方互換性のため） */}
           <Route path="/main" element={<Navigate to="/home" replace />} />

@@ -1,7 +1,7 @@
 // import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 // TODO: lucide-react -> mui-icons-material
-import { Settings, User, CreditCard, Bell, Tag, ChevronRight, Globe } from 'lucide-react';
+import { Settings, User, CreditCard, Bell, Tag, ChevronRight, Globe, Server } from 'lucide-react';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
@@ -47,6 +47,13 @@ const SettingsPage = () => {
       icon: <Tag className="w-5 h-5" />,
       description: 'カスタムラベルの作成と編集',
       path: '/settings/labels',
+    },
+    {
+      id: 'backend-test',
+      title: 'バックエンド通信テスト',
+      icon: <Server className="w-5 h-5" />,
+      description: 'APIサーバーとの接続を確認します',
+      path: '/backend-test',
     },
   ];
 
