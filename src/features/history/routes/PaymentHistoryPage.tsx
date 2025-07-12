@@ -30,8 +30,14 @@ import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import CurrencyExchangeRoundedIcon from '@mui/icons-material/CurrencyExchangeRounded';
 
 import SortDialog from '../../subscriptions/components/SortDialog';
-import FilterDialog, { PayHistoryFilterOptions, SubscFilterOptions } from '../../subscriptions/components/FilterDialog';
-import PaymentRecordDrawer, {PaymentRecord, payHistoryFormSchema} from '../components/PaymentRecordDrawer';
+import FilterDialog, {
+  PayHistoryFilterOptions,
+  SubscFilterOptions,
+} from '../../subscriptions/components/FilterDialog';
+import PaymentRecordDrawer, {
+  PaymentRecord,
+  payHistoryFormSchema,
+} from '../components/PaymentRecordDrawer';
 
 const PaymentHistoryPage = () => {
   const [sortDialogOpen, setSortDialogOpen] = useState(false);

@@ -83,7 +83,7 @@ const PaymentRecordDrawer = ({
   const [isEditing, setIsEditing] = useState(mode === 'edit');
   const [currency, setCurrency] = useState('JPY');
   const [amount, setAmount] = useState('');
-  
+
   const currencies = [
     { value: 'JPY', label: '¥ (JPY)', symbol: '¥' },
     { value: 'USD', label: '$ (USD)', symbol: '$' },
@@ -237,7 +237,7 @@ const PaymentRecordDrawer = ({
                     variant="outline"
                     className={cn(
                       'w-full pl-3 text-left font-normal',
-                      !field.value && 'text-muted-foreground'
+                      !field.value && 'text-muted-foreground',
                     )}
                     disabled={!isEditing && mode !== 'create'}
                   >
@@ -306,17 +306,14 @@ const PaymentRecordDrawer = ({
         name="amount"
         render={({ field }) => (
           <FormItem>
-            <FormLabel className="flex justify-between">
-              金額 *
-            </FormLabel>
+            <FormLabel className="flex justify-between">金額 *</FormLabel>
             <div className="space-y-4">
-
               <div className="flex items-start space-x-4">
                 <div className="relative flex-1">
                   <div className="flex">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <span className="text-gray-500 sm:text-sm">
-                        {currencies.find(c => c.value === currency)?.symbol}
+                        {currencies.find((c) => c.value === currency)?.symbol}
                       </span>
                     </div>
                     <FormControl>
@@ -337,7 +334,10 @@ const PaymentRecordDrawer = ({
                         disabled={!isEditing && mode !== 'create'}
                       >
                         {currencies.map((currency) => (
-                          <option key={currency.value} value={currency.value}>
+                          <option
+                            key={currency.value}
+                            value={currency.value}
+                          >
                             {currency.value}
                           </option>
                         ))}
@@ -351,7 +351,10 @@ const PaymentRecordDrawer = ({
                   <div className="mt-2">
                     <span className="font-medium">換算金額（JPY）:</span>
                     <span className="ml-2">
-                      ¥ {(Number(amount || 0) * (currency === 'USD' ? 148.5 : 160.2)).toLocaleString()}
+                      ¥{' '}
+                      {(
+                        Number(amount || 0) * (currency === 'USD' ? 148.5 : 160.2)
+                      ).toLocaleString()}
                     </span>
                   </div>
                 )}

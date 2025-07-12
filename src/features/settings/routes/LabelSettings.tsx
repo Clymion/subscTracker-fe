@@ -41,7 +41,7 @@ const LabelSettings = () => {
   } | null>(null);
 
   // サンプルデータ
-  const [labels, ] = useState([
+  const [labels] = useState([
     { id: 1, name: '動画', color: '#EF4444', count: 3 },
     { id: 2, name: '音楽', color: '#3B82F6', count: 2 },
     { id: 3, name: 'クラウド', color: '#10B981', count: 4 },

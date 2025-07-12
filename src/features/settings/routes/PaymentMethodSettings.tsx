@@ -281,12 +281,19 @@ const PaymentMethodSettings = () => {
             >
               キャンセル
             </Button>
-            <Button onClick={() => handleAddCard({
-              cardNumber: (document.getElementById('cardNumber') as HTMLInputElement).value,
-              expiryDate: (document.getElementById('expiryDate') as HTMLInputElement).value,
-              securityCode: (document.getElementById('securityCode') as HTMLInputElement).value,
-              cardholderName: (document.getElementById('cardholderName') as HTMLInputElement).value,
-            })}>追加する</Button>
+            <Button
+              onClick={() =>
+                handleAddCard({
+                  cardNumber: (document.getElementById('cardNumber') as HTMLInputElement).value,
+                  expiryDate: (document.getElementById('expiryDate') as HTMLInputElement).value,
+                  securityCode: (document.getElementById('securityCode') as HTMLInputElement).value,
+                  cardholderName: (document.getElementById('cardholderName') as HTMLInputElement)
+                    .value,
+                })
+              }
+            >
+              追加する
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

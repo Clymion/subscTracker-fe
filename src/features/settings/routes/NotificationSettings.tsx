@@ -5,13 +5,7 @@ import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';

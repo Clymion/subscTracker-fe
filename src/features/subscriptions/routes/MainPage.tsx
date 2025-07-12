@@ -17,7 +17,10 @@ import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 
 import SortDialog from '../components/SortDialog';
-import FilterDialog, { PayHistoryFilterOptions, SubscFilterOptions } from '../components/FilterDialog';
+import FilterDialog, {
+  PayHistoryFilterOptions,
+  SubscFilterOptions,
+} from '../components/FilterDialog';
 import SubscriptionDrawer from '../components/SubscriptionDrawer';
 
 const MainPage = () => {
