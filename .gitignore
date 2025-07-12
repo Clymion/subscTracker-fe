@@ -27,3 +27,4 @@ dist-ssr
 .pnpm-store/
 repomix-output*
 .firebase
+.env

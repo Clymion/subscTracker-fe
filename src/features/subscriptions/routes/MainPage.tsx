@@ -16,9 +16,9 @@ import SortRoundedIcon from '@mui/icons-material/SortRounded';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 
-import SortDialog from './SortDialog';
-import FilterDialog, { PayHistoryFilterOptions, SubscFilterOptions } from './FilterDialog';
-import SubscriptionDrawer from './SubscriptionDrawer';
+import SortDialog from '../components/SortDialog';
+import FilterDialog, { PayHistoryFilterOptions, SubscFilterOptions } from '../components/FilterDialog';
+import SubscriptionDrawer from '../components/SubscriptionDrawer';
 
 const MainPage = () => {
   const [periodUnit, setPeriodUnit] = useState('month');
