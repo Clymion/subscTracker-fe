@@ -55,3 +55,9 @@ exit
 ## 残課題
 - tailwindcss の`@tailwind`で生成されない
   - `npx shadcn@latest init`で生成される
+
+
+# コミット時
+```sh
+pnpm lint
+```
