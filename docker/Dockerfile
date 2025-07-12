@@ -16,6 +16,7 @@ WORKDIR /workspace
 USER node
 
 COPY package.json ./
+RUN pnpm config set store-dir /home/node/.local/share/pnpm/store
 RUN pnpm install
 
 COPY . .

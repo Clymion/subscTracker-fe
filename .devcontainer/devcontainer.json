@@ -17,7 +17,8 @@
 				"christian-kohler.path-intellisense",
 				"Gruntfuggly.todo-tree",
 				"github.copilot",
-				"GitHub.vscode-pull-request-github"
+				"GitHub.vscode-pull-request-github",
+				"saoudrizwan.claude-dev"
 			]
         }
     },
