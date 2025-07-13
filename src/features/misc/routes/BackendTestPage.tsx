@@ -10,8 +10,7 @@ import apiClient from '@/lib/api-client';
 
 // APIからテストデータを取得する非同期関数
 const getTestData = () => {
-  // バックエンドに `/api/test` というエンドポイントがあることを想定
-  return apiClient.get<{ message: string }>('/api/test');
+  return apiClient.get<{ message: string }>('/api/v1/health');
 };
 
 const BackendTestPage = () => {

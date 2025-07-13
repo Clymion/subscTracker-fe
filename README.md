@@ -22,13 +22,18 @@ docker compose run -it app bash
 sudo chown $USER:$USER node_modules/
 ```
 
-### firebaseへのデプロイ
+### firebaseへの初期化とデプロイ
 ```sh
+# 初期化
 pnpm setup
 source /home/node/.bashrc
 pnpm -g i firebase-tools
 firebase login
 firebase init
+
+# デプロイ
+pnpm build
+firebase deploy
 ```
 
 ## 初期化備忘録

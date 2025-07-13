@@ -18,7 +18,8 @@
 				"Gruntfuggly.todo-tree",
 				"github.copilot",
 				"GitHub.vscode-pull-request-github",
-				"saoudrizwan.claude-dev"
+				"saoudrizwan.claude-dev",
+				"humao.rest-client"
 			]
         }
     },

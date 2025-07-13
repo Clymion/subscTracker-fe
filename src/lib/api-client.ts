@@ -1,7 +1,5 @@
 import { env } from '@/config/env';
 
-// TODO: `env`の名前が重複
-
 // APIエラーの型を定義
 export type ApiError = {
   status: number;
@@ -72,12 +70,6 @@ const apiClient = {
   },
 
   // TODO: 必要に応じて patch, delete も実装
-};
-
-// 環境変数を読み込むための設定
-// 新規ファイル: src/config/env.ts
-export const env = {
-  BACKEND_BASE_URL: import.meta.env.BACKEND_BASE_URL as string,
 };
 
 export default apiClient;
