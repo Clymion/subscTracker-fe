@@ -10,13 +10,13 @@ import apiClient from '@/lib/api-client';
 
 // APIからテストデータを取得する非同期関数
 const getTestData = () => {
-  return apiClient.get<{ message: string }>('/api/v1/health');
+  return apiClient.get<{ message: string }>('/health');
 };
 
 const BackendTestPage = () => {
   const navigate = useNavigate();
   const { data, error, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['test-backend'], // クエリの一意なキー
+    queryKey: ['test-backend'],
     queryFn: getTestData,
     enabled: false, // 最初は自動で実行しない
   });
