@@ -22,13 +22,18 @@ docker compose run -it app bash
 sudo chown $USER:$USER node_modules/
 ```
 
-### firebaseへのデプロイ
+### firebaseへの初期化とデプロイ
 ```sh
+# 初期化
 pnpm setup
 source /home/node/.bashrc
 pnpm -g i firebase-tools
 firebase login
 firebase init
+
+# デプロイ
+pnpm build
+firebase deploy
 ```
 
 ## 初期化備忘録
@@ -55,3 +60,9 @@ exit
 ## 残課題
 - tailwindcss の`@tailwind`で生成されない
   - `npx shadcn@latest init`で生成される
+
+
+# コミット時
+```sh
+pnpm lint
+```

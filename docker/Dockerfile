@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm firebase-tools
 USER node:node
 
 # ============ 開発ステージ ============
@@ -16,6 +16,7 @@ WORKDIR /workspace
 USER node
 
 COPY package.json ./
+RUN pnpm config set store-dir /home/node/.local/share/pnpm/store
 RUN pnpm install
 
 COPY . .
