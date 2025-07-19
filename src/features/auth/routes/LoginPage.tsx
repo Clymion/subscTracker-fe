@@ -1,21 +1,57 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useMutation } from '@tanstack/react-query';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import apiClient from '@/lib/api-client';
 
+// FIXME: 型の定義を分離して、共通の場所に置く
+type LoginRequest = {
+  email: string;
+  password: string;
+};
+
+type LoginResponse = {
+  token: string;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+  };
+};
+
+/**
+ * ログインページコンポーネント
+ * ユーザーがメールアドレスとパスワードでログインするためのフォームを提供
+ */
 const LoginPage = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const loginMutation = useMutation<LoginResponse, Error, LoginRequest>({
+    mutationFn: async (credentials) => {
+      const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
+      return response;
+    },
+    onSuccess: (data) => {
+      localStorage.setItem('token', data.token);
+      navigate('/main');
+    },
+    onError: (error) => {
+      console.error('Login failed:', error.message);
+      // TODO: アラートではなく、画面にトーストなどでエラーメッセージを出す
+      alert(`ログインに失敗しました: ${error.message}`);
+    }
+  });
+
   const handleLogin = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
-    // TODO: ログイン認証処理
-    // 認証成功後にメイン画面へ遷移
-    navigate('/main');
+    loginMutation.mutate({ email, password });
   };
 
   return (
