@@ -39,14 +39,15 @@ const RegisterPage = () => {
   const [errors, setErrors] = useState<SignUpError>(null);
 
   const registerMutation = useMutation<RegisterResponse, CustomApiError, RegisterRequest>({
-    // TODO: 新規登録中のLoading表示
     mutationFn: async (request) => {
       return await apiClient.post<RegisterResponse>('/auth/register', request);
     },
     onSuccess: () => {
-      // FIXME: 登録成功の通知(非同期): 登録を待ってから遷移することを確認
-      toast.success('登録が完了しました。ログインしてください。');
+      toast.success('登録が完了しました。ログイン画面に移動します。');
+      // NOTE: トーストを見せるために、2秒後にログインページに遷移
+      setTimeout(() => {
       navigate('/login');
+      }, 2000);
     },
     onError: (error) => {
       console.error(error);
@@ -58,9 +59,9 @@ const RegisterPage = () => {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErrors(null); // エラーをリセット
     const validation = signUpSchema.safeParse(formData);
     if (!validation.success) {
-      // FIXME: 再度入力して解消したら、エラーメッセージをクリア
       setErrors(validation.error.format());
       return;
     }
@@ -73,7 +74,7 @@ const RegisterPage = () => {
       <Toaster richColors position="bottom-right" />
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-gray-900">SubsTracker</h1>
-        <p className="text-gray-600">サブスクリプション管理をシンプルに</p>
+        <p className="text-gray-600">サブスクリプション管理アプリ</p>
       </div>
 
       <Card className="w-full max-w-md">
@@ -137,7 +138,9 @@ const RegisterPage = () => {
                   required
                 />
                 {errors?.confirm_password && (
-                  <p className="text-red-500 text-sm">{errors.confirm_password._errors.join(', ')}</p>
+                  <p className="text-red-500 text-sm">
+                    {errors.confirm_password._errors.join(', ')}
+                  </p>
                 )}
               </div>
 
@@ -166,8 +169,9 @@ const RegisterPage = () => {
             <Button
               type="submit"
               className="w-full"
+              disabled={registerMutation.isPending}
             >
-              新規登録
+              {registerMutation.isPending ? '登録中...' : '新規登録'}
             </Button>
             <div className="text-sm text-center text-gray-600">
               すでにアカウントをお持ちの方は

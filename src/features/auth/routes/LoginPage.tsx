@@ -2,27 +2,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import apiClient from '@/lib/api-client';
-
-// FIXME: 型の定義を分離して、共通の場所に置く
-type LoginRequest = {
-  email: string;
-  password: string;
-};
-
-type LoginResponse = {
-  token: string;
-  user: {
-    id: string;
-    username: string;
-    email: string;
-  };
-};
+import { Toaster } from '@/components/ui/sonner';
+import { LoginRequest, LoginResponse } from '@/features/auth/types';
+import apiClient, { CustomApiError } from '@/lib/api-client';
 
 /**
  * ログインページコンポーネント
@@ -33,20 +21,21 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const loginMutation = useMutation<LoginResponse, Error, LoginRequest>({
+  const loginMutation = useMutation<LoginResponse, CustomApiError, LoginRequest>({
     mutationFn: async (credentials) => {
       const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
       return response;
     },
     onSuccess: (data) => {
       localStorage.setItem('token', data.token);
-      navigate('/main');
+      navigate('/home');
     },
     onError: (error) => {
-      console.error('Login failed:', error.message);
-      // TODO: アラートではなく、画面にトーストなどでエラーメッセージを出す
-      alert(`ログインに失敗しました: ${error.message}`);
-    }
+      console.error('Login failed:', error);
+      toast.error('ログインに失敗しました', {
+        description: error.message || 'メールアドレスまたはパスワードが正しくありません。',
+      });
+    },
   });
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>): void => {
@@ -56,9 +45,13 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
+      <Toaster
+        richColors
+        position="bottom-right"
+      />
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-gray-900">SubsTracker</h1>
-        <p className="text-gray-600">サブスクリプション管理をシンプルに</p>
+        <p className="text-gray-600">サブスクリプション管理アプリ</p>
       </div>
 
       <Card className="w-full max-w-md">
@@ -93,8 +86,9 @@ const LoginPage = () => {
             <Button
               type="submit"
               className="w-full"
+              disabled={loginMutation.isPending}
             >
-              ログイン
+              {loginMutation.isPending ? 'ログイン中...' : 'ログイン'}
             </Button>
             <div className="text-sm text-center space-y-2">
               <a
