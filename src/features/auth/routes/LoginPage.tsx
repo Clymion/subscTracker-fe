@@ -1,28 +1,56 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useMutation } from '@tanstack/react-query';
+import { Toaster, toast } from 'sonner';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LoginRequest, LoginResponse } from '@/features/auth/types';
+import apiClient, { CustomApiError } from '@/lib/api-client';
 
+/**
+ * ログインページコンポーネント
+ * ユーザーがメールアドレスとパスワードでログインするためのフォームを提供
+ */
 const LoginPage = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const loginMutation = useMutation<LoginResponse, CustomApiError, LoginRequest>({
+    mutationFn: async (credentials) => {
+      const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
+      return response;
+    },
+    onSuccess: (data) => {
+      localStorage.setItem('token', data.token);
+      navigate('/home');
+    },
+    onError: (error) => {
+      console.error('Login failed:', error);
+      toast.error('ログインに失敗しました', {
+        description: error.message || 'メールアドレスまたはパスワードが正しくありません。',
+      });
+    },
+  });
+
   const handleLogin = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
-    // TODO: ログイン認証処理
-    // 認証成功後にメイン画面へ遷移
-    navigate('/main');
+    loginMutation.mutate({ email, password });
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
+      <Toaster
+        richColors
+        position="bottom-right"
+      />
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-gray-900">SubsTracker</h1>
-        <p className="text-gray-600">サブスクリプション管理をシンプルに</p>
+        <p className="text-gray-600">サブスクリプション管理アプリ</p>
       </div>
 
       <Card className="w-full max-w-md">
@@ -57,16 +85,18 @@ const LoginPage = () => {
             <Button
               type="submit"
               className="w-full"
+              disabled={loginMutation.isPending}
             >
-              ログイン
+              {loginMutation.isPending ? 'ログイン中...' : 'ログイン'}
             </Button>
             <div className="text-sm text-center space-y-2">
-              <a
+              {/* TODO: バックエンドAPIが実装されたら有効化 */}
+              {/* <a
                 href="/forgot-password"
                 className="text-blue-600 hover:text-blue-800 block"
               >
                 パスワードをお忘れですか？
-              </a>
+              </a> */}
               <div className="text-gray-600">
                 アカウントをお持ちでない方は
                 <Button
