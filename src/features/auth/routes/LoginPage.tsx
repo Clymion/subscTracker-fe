@@ -90,12 +90,13 @@ const LoginPage = () => {
               {loginMutation.isPending ? 'ログイン中...' : 'ログイン'}
             </Button>
             <div className="text-sm text-center space-y-2">
-              <a
+              {/* TODO: バックエンドAPIが実装されたら有効化 */}
+              {/* <a
                 href="/forgot-password"
                 className="text-blue-600 hover:text-blue-800 block"
               >
                 パスワードをお忘れですか？
-              </a>
+              </a> */}
               <div className="text-gray-600">
                 アカウントをお持ちでない方は
                 <Button
