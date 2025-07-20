@@ -46,7 +46,7 @@ const RegisterPage = () => {
       toast.success('登録が完了しました。ログイン画面に移動します。');
       // NOTE: トーストを見せるために、2秒後にログインページに遷移
       setTimeout(() => {
-      navigate('/login');
+        navigate('/login');
       }, 2000);
     },
     onError: (error) => {
@@ -71,7 +71,10 @@ const RegisterPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
       {/* FIXME: richColors にならない */}
-      <Toaster richColors position="bottom-right" />
+      <Toaster
+        richColors
+        position="bottom-right"
+      />
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-gray-900">SubsTracker</h1>
         <p className="text-gray-600">サブスクリプション管理アプリ</p>

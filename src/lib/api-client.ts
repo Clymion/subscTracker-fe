@@ -91,7 +91,7 @@ const apiClient = {
    * @return レスポンスのJSONデータ
    * @throws `CustomApiError` エラーが発生した場合
    */
-  post: async <T>(url: string, body: any, options?: RequestInit): Promise<T> => {
+  post: async <T, B = unknown>(url: string, body: B, options?: RequestInit): Promise<T> => {
     try {
       const response = await fetch(`${env.BACKEND_BASE_URL}${url}`, {
         ...options,
