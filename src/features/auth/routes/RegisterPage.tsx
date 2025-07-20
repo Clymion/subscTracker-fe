@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useMutation } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Toaster } from '@/components/ui/sonner';
 import { signUpSchema } from '@/features/auth/schemas';
 import { RegisterRequest, RegisterResponse, SignUpData } from '@/features/auth/types';
 import apiClient, { CustomApiError } from '@/lib/api-client';
