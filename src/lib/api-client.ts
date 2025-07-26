@@ -1,29 +1,25 @@
 import { env } from '@/config/env';
+import { RequestOptions, ApiErrorResponse, CustomApiError } from '@/types/api';
 
 /**
- * APIエラーのレスポンス形式
+ * オブジェクトのキーをスネークケースからキャメルケースに変換するユーティリティ関数
+ * @param obj 変換対象のオブジェクト
+ * @returns キャメルケースのキーを持つオブジェクト
  */
-export type ApiErrorResponse = {
-  error: {
-    code: string;
-    message: string;
-    details?: object;
-  };
-};
-
-/**
- * APIレスポンスの型
- */
-export class CustomApiError extends Error {
-  code: number;
-  details?: object;
-
-  constructor({ error }: ApiErrorResponse) {
-    super(error.message);
-    this.code = parseInt(error.code, 10);
-    this.details = error.details;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const toCamelCase = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(toCamelCase);
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj).reduce((result, key) => {
+      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+      result[camelKey] = toCamelCase(obj[key]);
+      return result;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }, {} as any);
   }
-}
+  return obj;
+};
 
 /**
  * APIレスポンスを処理し、エラーがあればスローする
@@ -44,7 +40,7 @@ async function handleApiResponse(response: Response) {
     };
     throw new CustomApiError(errorPayload);
   }
-  return data;
+  return toCamelCase(data);
 }
 
 const NET_ERROR_MESSAGE = 'サーバーに接続できませんでした。ネットワーク接続を確認してください。';
@@ -60,7 +56,7 @@ const apiClient = {
    * @return レスポンスのJSONデータ
    * @throws `CustomApiError` エラーが発生した場合
    */
-  get: async <T>(url: string, options?: RequestInit): Promise<T> => {
+  get: async <T>(url: string, options?: RequestOptions): Promise<T> => {
     try {
       const response = await fetch(`${env.BACKEND_BASE_URL}${url}`, {
         ...options,
@@ -91,7 +87,7 @@ const apiClient = {
    * @return レスポンスのJSONデータ
    * @throws `CustomApiError` エラーが発生した場合
    */
-  post: async <T, B = unknown>(url: string, body: B, options?: RequestInit): Promise<T> => {
+  post: async <T, B = unknown>(url: string, body: B, options?: RequestOptions): Promise<T> => {
     try {
       const response = await fetch(`${env.BACKEND_BASE_URL}${url}`, {
         ...options,

@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/select';
 import { signUpSchema } from '@/features/auth/schemas';
 import { RegisterRequest, RegisterResponse, SignUpData } from '@/features/auth/types';
-import apiClient, { CustomApiError } from '@/lib/api-client';
+import apiClient from '@/lib/api-client';
+import { CustomApiError } from '@/types/api';
 
 type SignUpError = z.inferFormattedError<typeof signUpSchema> | null;
 

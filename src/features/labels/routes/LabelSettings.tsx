@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
+import { useQuery } from '@tanstack/react-query';
 import { Tag, ChevronLeft, Plus, Pencil, Trash2 } from 'lucide-react';
 
 import {
@@ -28,38 +29,29 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { colorPalette } from '@/constants/label';
+import { labelSchema } from '@/features/labels/schemas';
+import { LabelType, LabelListResponse } from '@/features/labels/types';
+import apiClient from '@/lib/api-client';
 
+/**
+ * ラベル設定ページのコンポーネント
+ */
 const LabelSettings = () => {
   const navigate = useNavigate();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedLabel, setSelectedLabel] = useState<{
-    id: number;
-    name: string;
-    color: string;
-    count: number;
-  } | null>(null);
-
-  // サンプルデータ
-  const [labels] = useState([
-    { id: 1, name: '動画', color: '#EF4444', count: 3 },
-    { id: 2, name: '音楽', color: '#3B82F6', count: 2 },
-    { id: 3, name: 'クラウド', color: '#10B981', count: 4 },
-    { id: 4, name: 'エンタメ', color: '#F59E0B', count: 1 },
-  ]);
-
-  // 利用可能な色のパレット
-  const colorPalette = [
-    '#EF4444', // 赤
-    '#F59E0B', // オレンジ
-    '#F4E511', // 黄
-    '#10B981', // 緑
-    '#3B82F6', // 青
-    '#6366F1', // インディゴ
-    '#8B5CF6', // 紫
-    '#EC4899', // ピンク
-  ];
+  const [selectedLabel, setSelectedLabel] = useState<LabelType | null>(null);
+  const { data: labels = [], isLoading } = useQuery<LabelType[]>({
+    queryKey: ['labels'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      return response.data.labels;
+    },
+  });
 
   const handleAddLabel = (formData: { name: string; color: string }) => {
     console.log('Add label:', formData);
@@ -145,49 +137,51 @@ const LabelSettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {labels.map((label) => (
-                <div
-                  key={label.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-8 h-8 rounded-full"
-                      style={{ backgroundColor: label.color }}
-                    />
-                    <div>
-                      <p className="font-medium">{label.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {label.count}個のサブスクリプションで使用中
-                      </p>
+              {isLoading && <p className="text-gray-500">ラベルを読み込み中...</p>}
+              {!isLoading &&
+                labels.map((label) => (
+                  <div
+                    key={label.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-8 h-8 rounded-full"
+                        style={{ backgroundColor: label.color }}
+                      />
+                      <div>
+                        <p className="font-medium">{label.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {label.usageCount}個のサブスクリプションで使用中
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedLabel(label);
+                          setShowEditDialog(true);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600"
+                        onClick={() => {
+                          setSelectedLabel(label);
+                          setShowDeleteDialog(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedLabel(label);
-                        setShowEditDialog(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-500 hover:text-red-600"
-                      onClick={() => {
-                        setSelectedLabel(label);
-                        setShowDeleteDialog(true);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-
+                ))
+              }
               {labels.length === 0 && (
                 <div className="text-center py-6 text-gray-500">
                   <p>登録されているラベルはありません</p>
@@ -308,7 +302,7 @@ const LabelSettings = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>ラベルを削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              このラベルは{selectedLabel?.count}個のサブスクリプションで使用されています。
+              このラベルは{selectedLabel?.usageCount}個のサブスクリプションで使用されています。
               削除すると、関連付けられたサブスクリプションからラベルが削除されます。
             </AlertDialogDescription>
           </AlertDialogHeader>
