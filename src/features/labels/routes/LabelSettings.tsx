@@ -75,6 +75,8 @@ const LabelSettings = () => {
     onSuccess: () => {
       toast.success('ラベルが作成されました');
       setShowAddDialog(false);
+      // 作成後はラベル一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ['labels'] });
     },
     onError: (error) => {
       console.error(error);
@@ -138,8 +140,30 @@ const LabelSettings = () => {
     setShowEditDialog(false);
   };
 
+  /** @var deleteMutation - ラベルを削除するためのミューテーションフック */
+  const deleteMutation = useMutation({
+    mutationFn: async (labelId: string) => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return await apiClient.delete(`/labels/${labelId}`, { headers });
+    },
+    onSuccess: () => {
+      toast.success('ラベルが削除されました');
+      setShowDeleteDialog(false);
+      // 削除後はラベル一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ['labels'] });
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error('ラベルの削除に失敗しました', {
+        description: error.message || '不明なエラーが発生しました。',
+      });
+    },
+  });
+
   const handleDeleteLabel = () => {
-    console.log('Delete label:', selectedLabel);
+    if (!selectedLabel) return;
+    deleteMutation.mutate(selectedLabel.id);
     setShowDeleteDialog(false);
   };
 

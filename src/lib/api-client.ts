@@ -24,23 +24,26 @@ const toCamelCase = (obj: any): any => {
 /**
  * APIレスポンスを処理し、エラーがあればスローする
  * @param response Fetch APIのレスポンスオブジェクト
- * @return レスポンスのJSONデータ
+ * @return レスポンスのJSONデータ（ボディがない場合は null）
  * @throws `CustomApiError` エラーが発生した場合
  */
 async function handleApiResponse(response: Response) {
-  const data = await response.json();
+  const text = await response.text();
+  // テキストが空でなければJSONとしてパース、空ならnull (DELETEリクエストなどでボディがない場合の対応)
+  const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
     const errorPayload: ApiErrorResponse = {
       error: {
-        code: data.error.code || response.status,
-        message: data.error.message || '不明なエラーが発生しました。',
-        details: data.error.details || {},
+        // dataが存在する場合のみその中の値を使用する
+        code: data?.error?.code || response.status,
+        message: data?.error?.message || '不明なエラーが発生しました。',
+        details: data?.error?.details || {},
       },
     };
     throw new CustomApiError(errorPayload);
   }
-  return toCamelCase(data);
+  return data ? toCamelCase(data) : null;
 }
 
 const NET_ERROR_MESSAGE = 'サーバーに接続できませんでした。ネットワーク接続を確認してください。';
