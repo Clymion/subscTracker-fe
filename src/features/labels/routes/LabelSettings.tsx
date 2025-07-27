@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
-import { Tag, ChevronLeft, Plus, Pencil, Trash2 } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronLeft, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
+import { toast, Toaster } from 'sonner';
 
 import {
   AlertDialog,
@@ -17,7 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -28,57 +30,151 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { colorPalette } from '@/constants/label';
+import { labelPostRequestSchema, labelPutRequestSchema } from '@/features/labels/schemas';
+import {
+  LabelListResponse,
+  LabelType,
+  LabelPostRequest,
+  LabelPutRequest,
+} from '@/features/labels/types';
+import apiClient from '@/lib/api-client';
 
+/**
+ * ラベル設定ページのコンポーネント
+ */
 const LabelSettings = () => {
   const navigate = useNavigate();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedLabel, setSelectedLabel] = useState<{
-    id: number;
-    name: string;
-    color: string;
-    count: number;
-  } | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<LabelType | null>(null);
+  const queryClient = useQueryClient();
+  /**
+   * @var labels - ラベルの一覧を取得するためのクエリフック
+   */
+  const { data: labels = [], isLoading } = useQuery<LabelType[]>({
+    queryKey: ['labels'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      // id順にソート
+      const _labels = [...response.data.labels];
+      return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    },
+  });
+  // TODO: 登録・更新・削除操作やダイアログのコンポーネントのセットを別のファイルに分けたい
+  /** @var registerMutation - ラベルを新規登録するためのミューテーションフック */
+  const registerMutation = useMutation({
+    mutationFn: async (label: LabelPostRequest) => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return await apiClient.post<LabelPostRequest>('/labels', label, { headers });
+    },
+    onSuccess: () => {
+      toast.success('ラベルが作成されました');
+      setShowAddDialog(false);
+      // 作成後はラベル一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ['labels'] });
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error('ラベルの作成に失敗しました', {
+        description: error.message || '不明なエラーが発生しました。',
+      });
+    },
+  });
 
-  // サンプルデータ
-  const [labels] = useState([
-    { id: 1, name: '動画', color: '#EF4444', count: 3 },
-    { id: 2, name: '音楽', color: '#3B82F6', count: 2 },
-    { id: 3, name: 'クラウド', color: '#10B981', count: 4 },
-    { id: 4, name: 'エンタメ', color: '#F59E0B', count: 1 },
-  ]);
-
-  // 利用可能な色のパレット
-  const colorPalette = [
-    '#EF4444', // 赤
-    '#F59E0B', // オレンジ
-    '#F4E511', // 黄
-    '#10B981', // 緑
-    '#3B82F6', // 青
-    '#6366F1', // インディゴ
-    '#8B5CF6', // 紫
-    '#EC4899', // ピンク
-  ];
-
-  const handleAddLabel = (formData: { name: string; color: string }) => {
-    console.log('Add label:', formData);
+  const handleAddLabel = (formData: LabelPostRequest) => {
+    const validation = labelPostRequestSchema.safeParse({
+      id: '', // 新規作成なのでIDは空
+      name: formData.name,
+      color: formData.color,
+    });
+    if (!validation.success) {
+      toast.error(validation.error.format()._errors.join(', '));
+      return;
+    }
+    registerMutation.mutate(formData);
     setShowAddDialog(false);
   };
 
-  const handleEditLabel = (formData: { name: string; color: string }) => {
-    console.log('Edit label:', formData);
+  /** @var editMutation - ラベルを更新するためのミューテーションフック */
+  const editMutation = useMutation({
+    mutationFn: async (label: LabelPutRequest) => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return await apiClient.put<LabelPutRequest>(`/labels/${selectedLabel?.id}`, label, {
+        headers,
+      });
+    },
+    onSuccess: () => {
+      toast.success('ラベルが更新されました');
+      setShowEditDialog(false);
+      // 更新後はラベル一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ['labels'] });
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error('ラベルの更新に失敗しました', {
+        description: error.message || '不明なエラーが発生しました。',
+      });
+    },
+  });
+
+  const handleEditLabel = (formData: LabelPostRequest) => {
+    const targetLabel = {
+      id: String(selectedLabel?.id) || '',
+      name: formData.name,
+      color: formData.color || selectedLabel?.color || '',
+    };
+    const validation = labelPutRequestSchema.safeParse(targetLabel);
+    console.log('Validation result:', validation);
+    if (!validation.success) {
+      const errorMessages = validation.error.errors.map((err) => err.message).join('\n');
+      toast.error(errorMessages);
+      return;
+    }
+    editMutation.mutate(targetLabel);
     setShowEditDialog(false);
   };
 
+  /** @var deleteMutation - ラベルを削除するためのミューテーションフック */
+  const deleteMutation = useMutation({
+    mutationFn: async (labelId: string) => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return await apiClient.delete(`/labels/${labelId}`, { headers });
+    },
+    onSuccess: () => {
+      toast.success('ラベルが削除されました');
+      setShowDeleteDialog(false);
+      // 削除後はラベル一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ['labels'] });
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error('ラベルの削除に失敗しました', {
+        description: error.message || '不明なエラーが発生しました。',
+      });
+    },
+  });
+
   const handleDeleteLabel = () => {
-    console.log('Delete label:', selectedLabel);
+    if (!selectedLabel) return;
+    deleteMutation.mutate(selectedLabel.id);
     setShowDeleteDialog(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster
+        richColors
+        position="bottom-right"
+      />
       {/* PCサイドナビゲーション - lg以上で表示 */}
+      {/* FIXME: 共通化 */}
       <div className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r p-4">
         <div className="mb-8">
           <h1 className="text-xl font-bold text-gray-900">SubsTracker</h1>
@@ -145,49 +241,50 @@ const LabelSettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {labels.map((label) => (
-                <div
-                  key={label.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-8 h-8 rounded-full"
-                      style={{ backgroundColor: label.color }}
-                    />
-                    <div>
-                      <p className="font-medium">{label.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {label.count}個のサブスクリプションで使用中
-                      </p>
+              {isLoading && <p className="text-gray-500">ラベルを読み込み中...</p>}
+              {!isLoading &&
+                labels.map((label) => (
+                  <div
+                    key={label.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-8 h-8 rounded-full"
+                        style={{ backgroundColor: label.color }}
+                      />
+                      <div>
+                        <p className="font-medium">{label.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {label.usageCount}個のサブスクリプションで使用中
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedLabel(label);
+                          setShowEditDialog(true);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600"
+                        onClick={() => {
+                          setSelectedLabel(label);
+                          setShowDeleteDialog(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedLabel(label);
-                        setShowEditDialog(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-500 hover:text-red-600"
-                      onClick={() => {
-                        setSelectedLabel(label);
-                        setShowDeleteDialog(true);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-
+                ))}
               {labels.length === 0 && (
                 <div className="text-center py-6 text-gray-500">
                   <p>登録されているラベルはありません</p>
@@ -308,7 +405,7 @@ const LabelSettings = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>ラベルを削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              このラベルは{selectedLabel?.count}個のサブスクリプションで使用されています。
+              このラベルは{selectedLabel?.usageCount}個のサブスクリプションで使用されています。
               削除すると、関連付けられたサブスクリプションからラベルが削除されます。
             </AlertDialogDescription>
           </AlertDialogHeader>
