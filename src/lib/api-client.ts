@@ -111,7 +111,67 @@ const apiClient = {
     }
   },
 
-  // TODO: 必要に応じて patch, delete も実装
+  /**
+   * PUTリクエストを送信
+   * @param url エンドポイントのURL
+   * @param body リクエストボディ
+   * @param options Fetch APIのオプション
+   * @return レスポンスのJSONデータ
+   * @throws `CustomApiError` エラーが発生した場合
+   */
+  put: async <T, B = unknown>(url: string, body: B, options?: RequestOptions): Promise<T> => {
+    try {
+      const response = await fetch(`${env.BACKEND_BASE_URL}${url}`, {
+        ...options,
+        method: 'PUT',
+        body: JSON.stringify(body),
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
+      return handleApiResponse(response);
+    } catch (error) {
+      // ネットワークエラー (fetch自体が失敗) はここでキャッチ
+      console.error('Network or other fetch error:', error);
+      throw new CustomApiError({
+        error: {
+          code: '503',
+          message: NET_ERROR_MESSAGE,
+        },
+      });
+    }
+  },
+
+  /**
+   * DELETEリクエストを送信
+   * @param url エンドポイントのURL
+   * @param options Fetch APIのオプション
+   * @return レスポンスのJSONデータ
+   * @throws `CustomApiError` エラーが発生した場合
+   */
+  delete: async <T>(url: string, options?: RequestOptions): Promise<T> => {
+    try {
+      const response = await fetch(`${env.BACKEND_BASE_URL}${url}`, {
+        ...options,
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
+      return handleApiResponse(response);
+    } catch (error) {
+      // ネットワークエラー (fetch自体が失敗) はここでキャッチ
+      console.error('Network or other fetch error:', error);
+      throw new CustomApiError({
+        error: {
+          code: '503',
+          message: NET_ERROR_MESSAGE,
+        },
+      });
+    }
+  },
 };
 
 export default apiClient;

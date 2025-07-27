@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
@@ -31,8 +31,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { colorPalette } from '@/constants/label';
-import { labelRequestSchema } from '@/features/labels/schemas';
-import { LabelListResponse, LabelType, LabelRequest } from '@/features/labels/types';
+import { labelPostRequestSchema, labelPutRequestSchema } from '@/features/labels/schemas';
+import {
+  LabelListResponse,
+  LabelType,
+  LabelPostRequest,
+  LabelPutRequest,
+} from '@/features/labels/types';
 import apiClient from '@/lib/api-client';
 
 /**
@@ -44,6 +49,7 @@ const LabelSettings = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState<LabelType | null>(null);
+  const queryClient = useQueryClient();
   /**
    * @var labels - ラベルの一覧を取得するためのクエリフック
    */
@@ -53,16 +59,18 @@ const LabelSettings = () => {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await apiClient.get<LabelListResponse>('/labels', { headers });
-      return response.data.labels;
+      // id順にソート
+      const _labels = [...response.data.labels];
+      return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
     },
   });
   // TODO: 登録・更新・削除操作やダイアログのコンポーネントのセットを別のファイルに分けたい
   /** @var registerMutation - ラベルを新規登録するためのミューテーションフック */
   const registerMutation = useMutation({
-    mutationFn: async (label: LabelRequest) => {
+    mutationFn: async (label: LabelPostRequest) => {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      return await apiClient.post<LabelRequest>('/labels', label, { headers });
+      return await apiClient.post<LabelPostRequest>('/labels', label, { headers });
     },
     onSuccess: () => {
       toast.success('ラベルが作成されました');
@@ -76,8 +84,8 @@ const LabelSettings = () => {
     },
   });
 
-  const handleAddLabel = (formData: { name: string; color: string }) => {
-    const validation = labelRequestSchema.safeParse({
+  const handleAddLabel = (formData: LabelPostRequest) => {
+    const validation = labelPostRequestSchema.safeParse({
       id: '', // 新規作成なのでIDは空
       name: formData.name,
       color: formData.color,
@@ -90,8 +98,43 @@ const LabelSettings = () => {
     setShowAddDialog(false);
   };
 
-  const handleEditLabel = (formData: { name: string; color: string }) => {
-    console.log('Edit label:', formData);
+  /** @var editMutation - ラベルを更新するためのミューテーションフック */
+  const editMutation = useMutation({
+    mutationFn: async (label: LabelPutRequest) => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return await apiClient.put<LabelPutRequest>(`/labels/${selectedLabel?.id}`, label, {
+        headers,
+      });
+    },
+    onSuccess: () => {
+      toast.success('ラベルが更新されました');
+      setShowEditDialog(false);
+      // 更新後はラベル一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ['labels'] });
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error('ラベルの更新に失敗しました', {
+        description: error.message || '不明なエラーが発生しました。',
+      });
+    },
+  });
+
+  const handleEditLabel = (formData: LabelPutRequest) => {
+    const targetLabel = {
+      id: String(selectedLabel?.id) || '',
+      name: formData.name,
+      color: formData.color || selectedLabel?.color || '',
+    };
+    const validation = labelPutRequestSchema.safeParse(targetLabel);
+    console.log('Validation result:', validation);
+    if (!validation.success) {
+      const errorMessages = validation.error.errors.map((err) => err.message).join('\n');
+      toast.error(errorMessages);
+      return;
+    }
+    editMutation.mutate(targetLabel);
     setShowEditDialog(false);
   };
 

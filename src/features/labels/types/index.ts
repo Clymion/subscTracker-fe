@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-import { labelSchema, labelRequestSchema } from '@/features/labels/schemas';
+import {
+  labelSchema,
+  labelPostRequestSchema,
+  labelPutRequestSchema,
+} from '@/features/labels/schemas';
 
 export type LabelType = z.infer<typeof labelSchema>;
 
@@ -11,4 +15,6 @@ export type LabelListResponse = {
   meta: object;
 };
 
-export type LabelRequest = z.infer<typeof labelRequestSchema>;
+export type LabelPostRequest = z.infer<typeof labelPostRequestSchema>;
+
+export type LabelPutRequest = z.infer<typeof labelPutRequestSchema>;
