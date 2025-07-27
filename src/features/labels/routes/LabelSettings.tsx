@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
-import { useQuery } from '@tanstack/react-query';
-import { Tag, ChevronLeft, Plus, Pencil, Trash2 } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { ChevronLeft, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
+import { toast, Toaster } from 'sonner';
 
 import {
   AlertDialog,
@@ -18,7 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -30,8 +31,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { colorPalette } from '@/constants/label';
-import { labelSchema } from '@/features/labels/schemas';
-import { LabelType, LabelListResponse } from '@/features/labels/types';
+import { labelRequestSchema } from '@/features/labels/schemas';
+import { LabelListResponse, LabelType, LabelRequest } from '@/features/labels/types';
 import apiClient from '@/lib/api-client';
 
 /**
@@ -43,6 +44,9 @@ const LabelSettings = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState<LabelType | null>(null);
+  /**
+   * @var labels - ラベルの一覧を取得するためのクエリフック
+   */
   const { data: labels = [], isLoading } = useQuery<LabelType[]>({
     queryKey: ['labels'],
     queryFn: async () => {
@@ -52,9 +56,37 @@ const LabelSettings = () => {
       return response.data.labels;
     },
   });
+  // TODO: 登録・更新・削除操作やダイアログのコンポーネントのセットを別のファイルに分けたい
+  /** @var registerMutation - ラベルを新規登録するためのミューテーションフック */
+  const registerMutation = useMutation({
+    mutationFn: async (label: LabelRequest) => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return await apiClient.post<LabelRequest>('/labels', label, { headers });
+    },
+    onSuccess: () => {
+      toast.success('ラベルが作成されました');
+      setShowAddDialog(false);
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error('ラベルの作成に失敗しました', {
+        description: error.message || '不明なエラーが発生しました。',
+      });
+    },
+  });
 
   const handleAddLabel = (formData: { name: string; color: string }) => {
-    console.log('Add label:', formData);
+    const validation = labelRequestSchema.safeParse({
+      id: '', // 新規作成なのでIDは空
+      name: formData.name,
+      color: formData.color,
+    });
+    if (!validation.success) {
+      toast.error(validation.error.format()._errors.join(', '));
+      return;
+    }
+    registerMutation.mutate(formData);
     setShowAddDialog(false);
   };
 
@@ -70,7 +102,12 @@ const LabelSettings = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster
+        richColors
+        position="bottom-right"
+      />
       {/* PCサイドナビゲーション - lg以上で表示 */}
+      {/* FIXME: 共通化 */}
       <div className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r p-4">
         <div className="mb-8">
           <h1 className="text-xl font-bold text-gray-900">SubsTracker</h1>
@@ -180,8 +217,7 @@ const LabelSettings = () => {
                       </Button>
                     </div>
                   </div>
-                ))
-              }
+                ))}
               {labels.length === 0 && (
                 <div className="text-center py-6 text-gray-500">
                   <p>登録されているラベルはありません</p>

@@ -6,3 +6,8 @@ export const labelSchema = z.object({
   color: z.string().optional(),
   usageCount: z.number().default(0),
 });
+
+export const labelRequestSchema = z.object({
+  name: z.string().min(1, 'ラベル名は必須です'),
+  color: z.string().optional(),
+});
