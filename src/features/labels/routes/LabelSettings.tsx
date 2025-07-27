@@ -123,7 +123,7 @@ const LabelSettings = () => {
     },
   });
 
-  const handleEditLabel = (formData: LabelPutRequest) => {
+  const handleEditLabel = (formData: LabelPostRequest) => {
     const targetLabel = {
       id: String(selectedLabel?.id) || '',
       name: formData.name,
