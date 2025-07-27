@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
@@ -15,7 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { SubscriptionSummaryResponse } from '@/features/subscriptions/types';
+import { SubscriptionFreqDisplay, SubscriptionFrequency } from '@/constants/subscription';
+import { SubscriptionSummaryResponse, SubscriptionSummary } from '@/features/subscriptions/types';
 import apiClient from '@/lib/api-client';
 
 // FIXME: フィルターアイコンと並び替えアイコンがわかりにくい
@@ -28,7 +29,10 @@ import SortDialog from '../components/SortDialog';
 import SubscriptionDrawer from '../components/SubscriptionDrawer';
 
 const MainPage = () => {
-  const [periodUnit, setPeriodUnit] = useState('month');
+  type ValueOf<T> = T[keyof T];
+  const [periodUnit, setPeriodUnit] = useState<ValueOf<typeof SubscriptionFreqDisplay>>(
+    SubscriptionFreqDisplay.MONTH,
+  );
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -45,7 +49,7 @@ const MainPage = () => {
     // TODO: フィルター処理の実装
   };
 
-  const { data: subscriptions = [], isLoading } = useQuery({
+  const { data: subscriptions = [], isLoading } = useQuery<SubscriptionSummary[]>({
     queryKey: ['subscriptions'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
@@ -57,6 +61,77 @@ const MainPage = () => {
     },
     refetchOnWindowFocus: false,
   });
+
+  /**
+   * @description 表示用のサブスクリプションリストと表示価格を計算する
+   * - まず、各サブスクリプションの料金を「月額」に正規化
+   * - その後、選択された表示単位（日/月/年）に基づいて表示価格を計算
+   */
+  const displaySubscriptions = useMemo(() => {
+    return subscriptions.map((sub) => {
+      let monthlyPrice = 0;
+      // まず、各サブスクの支払い頻度を基に月額料金に正規化する
+      switch (sub.paymentFrequency) {
+        case SubscriptionFrequency.DAILY:
+          monthlyPrice = sub.price * 30; // 1ヶ月を30日として計算
+          break;
+        case SubscriptionFrequency.YEARLY:
+          monthlyPrice = sub.price / 12;
+          break;
+        case SubscriptionFrequency.MONTHLY:
+        default:
+          monthlyPrice = sub.price;
+          break;
+      }
+
+      // 正規化した月額料金を基に、選択された表示単位の価格を計算する
+      let displayPrice = monthlyPrice;
+      switch (periodUnit) {
+        case SubscriptionFreqDisplay.DAY:
+          displayPrice = monthlyPrice / 30; // 1ヶ月を30日として計算
+          break;
+        case SubscriptionFreqDisplay.YEAR:
+          displayPrice = monthlyPrice * 12;
+          break;
+        case SubscriptionFreqDisplay.MONTH:
+        default:
+          // 月額の場合は何もしない
+          break;
+      }
+
+      return {
+        ...sub,
+        displayPrice, // 計算結果の表示用価格を新しいプロパティとして追加
+      };
+    });
+  }, [subscriptions, periodUnit]);
+
+  /**
+   * @description 表示用データに基づいて合計金額を計算する
+   */
+  const totalPrice = useMemo(() => {
+    return displaySubscriptions.reduce((sum, sub) => sum + sub.displayPrice, 0);
+  }, [displaySubscriptions]);
+
+  /**
+   * @description 合計金額の表示テキストを生成する
+   */
+  const totalPriceText = useMemo(() => {
+    const unitText =
+      periodUnit === SubscriptionFreqDisplay.DAY
+        ? '日'
+        : periodUnit === SubscriptionFreqDisplay.MONTH
+          ? '月'
+          : '年';
+    // TODO: 通貨単位(円/ドルなど)の正規化
+    // toLocaleString() で3桁区切りにし、Math.round() で端数を丸める
+    return (
+      <>
+        合計: ¥{Math.round(totalPrice).toLocaleString()}
+        <span className="text-gray-600 text-sm">&nbsp;/{unitText}</span>
+      </>
+    );
+  }, [totalPrice, periodUnit]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,31 +186,28 @@ const MainPage = () => {
 
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <p className="text-gray-900 font-medium">
-                合計: ¥4,590
-                <span className="text-gray-600 text-sm">
-                  /{periodUnit === 'day' ? '日' : periodUnit === 'month' ? '月' : '年'}
-                </span>
-              </p>
+              <p className="text-gray-900 font-medium">{totalPriceText}</p>
               <ToggleGroup
                 type="single"
                 value={periodUnit}
-                onValueChange={setPeriodUnit}
+                onValueChange={(value) => {
+                  if (value) setPeriodUnit(value as ValueOf<typeof SubscriptionFreqDisplay>);
+                }}
               >
                 <ToggleGroupItem
-                  value="day"
+                  value={SubscriptionFreqDisplay.DAY}
                   className="px-2"
                 >
                   日
                 </ToggleGroupItem>
                 <ToggleGroupItem
-                  value="month"
+                  value={SubscriptionFreqDisplay.MONTH}
                   className="px-2"
                 >
                   月
                 </ToggleGroupItem>
                 <ToggleGroupItem
-                  value="year"
+                  value={SubscriptionFreqDisplay.YEAR}
                   className="px-2"
                 >
                   年
@@ -166,14 +238,14 @@ const MainPage = () => {
           {isLoading && (
             <div className="col-span-full text-center text-gray-500">読み込み中...</div>
           )}
-          {!isLoading && subscriptions.length === 0 && (
+          {!isLoading && displaySubscriptions.length === 0 && (
             <div className="col-span-full text-center text-gray-500">
               サブスクリプションがありません
             </div>
           )}
           {!isLoading &&
-            subscriptions.length > 0 &&
-            subscriptions.map((sub, index) => (
+            displaySubscriptions.length > 0 &&
+            displaySubscriptions.map((sub, index) => (
               <Card
                 key={index}
                 className="hover:shadow-lg transition-shadow cursor-pointer"
@@ -184,11 +256,18 @@ const MainPage = () => {
                     <div className="space-y-2">
                       <h3 className="font-medium text-lg">{sub.name}</h3>
                       <p className="font-medium text-gray-900">
+                        {/* 表示には計算済みの displayPrice を使用 */}
                         {sub.currency === 'JPY'
-                          ? `¥${sub.price.toLocaleString()}`
-                          : `$${sub.price}`}
+                          ? `¥${Math.round(sub.displayPrice).toLocaleString()}`
+                          : `$${sub.displayPrice.toFixed(2)}`}{' '}
+                        {/* 外貨は小数点2桁まで表示 */}
                         <span className="text-gray-600 text-sm">
-                          /{periodUnit === 'day' ? '日' : periodUnit === 'month' ? '月' : '年'}
+                          /
+                          {periodUnit === SubscriptionFreqDisplay.DAY
+                            ? '日'
+                            : periodUnit === SubscriptionFreqDisplay.MONTH
+                              ? '月'
+                              : '年'}
                         </span>
                       </p>
                       <div className="flex gap-2 flex-wrap">

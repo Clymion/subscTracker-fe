@@ -13,6 +13,10 @@ SubscriptionSummary:
     currency:
       type: string
       description: 通貨
+    payment_frequency:
+      type: string
+      description: 支払い頻度
+      enum: [daily, monthly, yearly]
     next_payment_date:
       type: string
       format: date
