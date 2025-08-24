@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  SubscriptionSchema,
   SubscriptionCreateRequestSchema,
   SubscriptionSummarySchema,
 } from '@/features/subscriptions/schemas';
@@ -15,3 +16,10 @@ export type SubscriptionSummaryResponse = {
 };
 
 export type SubscriptionCreateRequest = z.infer<typeof SubscriptionCreateRequestSchema>;
+
+export type Subscription = z.infer<typeof SubscriptionSchema>;
+
+export type SubscriptionResponse = {
+  data: Subscription;
+  meta: object;
+};

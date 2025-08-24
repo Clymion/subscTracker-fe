@@ -245,9 +245,9 @@ const MainPage = () => {
           )}
           {!isLoading &&
             displaySubscriptions.length > 0 &&
-            displaySubscriptions.map((sub, index) => (
+            displaySubscriptions.map((sub) => (
               <Card
-                key={index}
+                key={sub.id}
                 className="hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => navigate(`/subscription/${sub.id}`)}
               >
