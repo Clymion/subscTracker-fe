@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { SubscriptionFrequency, SubscriptionStatus } from '@/constants/subscription';
+import { LabelListResponse, LabelType } from '@/features/labels/types';
 import { SubscriptionSchema } from '@/features/subscriptions/schemas';
 import { Subscription, SubscriptionResponse } from '@/features/subscriptions/types';
 import apiClient from '@/lib/api-client';
@@ -50,8 +51,20 @@ const SubscriptionDetail = () => {
     status: SubscriptionStatus.ACTIVE,
   });
 
-  // TODO: APIから取得するように変更する
-  const availableLabels = ['動画', '音楽', 'エンタメ', 'クラウド', 'ビジネス', 'ストレージ'];
+  /**
+   * @var availableLabels - 利用可能なラベル一覧
+   */
+  const { data: availableLabels = [], isLoading: isLoadingLabels } = useQuery<LabelType[]>({
+    queryKey: ['labels'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      // id順にソート
+      const _labels = [...response.data.labels];
+      return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    },
+  });
 
   // データ取得
   const { data: subscription, isLoading } = useQuery({
@@ -62,6 +75,10 @@ const SubscriptionDetail = () => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await apiClient.get<SubscriptionResponse>(`/subscriptions/${id}`, {
         headers,
+      });
+      setFormData({
+        ...response.data,
+        id: String(response.data.id),
       });
       return response.data || null;
     },
@@ -88,18 +105,20 @@ const SubscriptionDetail = () => {
     },
     onError: () => {
       toast.error('サブスクリプションの更新に失敗しました');
+      console.error('Failed to update subscription:');
+      console.error(formData);
     },
   });
 
+  // ラベルの選択/解除
   const toggleLabel = (label: string) => {
-    if (isEditing) {
-      setFormData((prev) => {
-        const labels = prev.labels.includes(label)
-          ? prev.labels.filter((l) => l !== label)
-          : [...prev.labels, label];
-        return { ...prev, labels };
-      });
-    }
+    if (!isEditing) return;
+    setFormData((prev) => ({
+      ...prev,
+      labels: prev.labels.includes(label)
+        ? prev.labels.filter((l) => l !== label)
+        : [...prev.labels, label],
+    }));
   };
 
   // 保存処理
@@ -128,6 +147,7 @@ const SubscriptionDetail = () => {
     setIsEditing(false);
   };
 
+  // 共通ヘッダー
   const commonHeader = () => {
     return (
       <div className="flex justify-between items-center mb-8">
@@ -169,6 +189,7 @@ const SubscriptionDetail = () => {
     );
   }
 
+  // ローディング中
   if (isLoading) {
     return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -181,6 +202,7 @@ const SubscriptionDetail = () => {
     </div>
     );
   } else {
+    // サブスクリプションが存在しない場合
     if (!subscription) {
       return (
         <div className="min-h-screen bg-gray-50 py-8">
@@ -213,13 +235,15 @@ const SubscriptionDetail = () => {
               <CardContent className="p-6 space-y-6">
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold">基本情報</h2>
+                  {/* id */}
+                  <Input type="hidden" value={formData.id} />
 
                   {/* サービス名 */}
                   <div className="space-y-2">
                     <Label htmlFor="name">サービス名</Label>
                     <Input
                       id="name"
-                      value={subscription.name}
+                      value={formData.name}
                       onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                       disabled={!isEditing}
                     />
@@ -232,7 +256,7 @@ const SubscriptionDetail = () => {
                       <Input
                         id="price"
                         type="number"
-                        value={subscription.price}
+                        value={formData.price}
                         onChange={(e) =>
                           setFormData((prev) => ({
                             ...prev,
@@ -245,7 +269,7 @@ const SubscriptionDetail = () => {
                     <div className="space-y-2">
                       <Label htmlFor="currency">通貨</Label>
                       <Select
-                        value={subscription.currency}
+                        value={formData.currency}
                         onValueChange={(value) =>
                           setFormData((prev) => ({
                             ...prev,
@@ -270,16 +294,23 @@ const SubscriptionDetail = () => {
                   <div className="space-y-2">
                     <Label>ラベル</Label>
                     <div className="flex flex-wrap gap-2">
-                      {availableLabels.map((label) => (
-                        <Badge
-                          key={label}
-                          variant={subscription.labels.includes(label) ? 'default' : 'outline'}
-                          className={isEditing ? 'cursor-pointer' : ''}
-                          onClick={() => toggleLabel(label)}
-                        >
-                          {label}
-                        </Badge>
-                      ))}
+                      {isLoadingLabels && <span className="text-gray-500">読み込み中...</span>}
+                      {!isLoadingLabels && availableLabels.length === 0 && (
+                        <span className="text-gray-500">利用可能なラベルがありません</span>
+                      )}
+                      {!isLoading &&
+                        availableLabels.length > 0 &&
+                        availableLabels.map((label) => (
+                          <Badge
+                            key={label.id}
+                            variant={formData.labels.includes(String(label.id)) ? 'default' : 'outline'}
+                            className={isEditing ? 'cursor-pointer' : ''}
+                            onClick={() => toggleLabel(String(label.id))}
+                          >
+                            {label.name}
+                          </Badge>
+                        ))
+                      }
                     </div>
                   </div>
                 </div>
@@ -296,7 +327,7 @@ const SubscriptionDetail = () => {
                   <div className="space-y-2">
                     <Label htmlFor="frequency">支払い頻度</Label>
                     <Select
-                      value={subscription.frequency}
+                      value={formData.frequency}
                       onValueChange={(value) =>
                         setFormData((prev) => ({
                           ...prev,
@@ -311,7 +342,7 @@ const SubscriptionDetail = () => {
                       <SelectContent>
                         <SelectItem value={SubscriptionFrequency.MONTHLY}>毎月</SelectItem>
                         <SelectItem value={SubscriptionFrequency.YEARLY}>毎年</SelectItem>
-                        {/* <SelectItem value={SubscriptionFrequency.DAILY}>毎週</SelectItem> */}
+                        <SelectItem value={SubscriptionFrequency.DAILY}>毎週</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -327,8 +358,8 @@ const SubscriptionDetail = () => {
                           disabled={!isEditing}
                         >
                           <TodayRoundedIcon />
-                          {subscription.initialPaymentDate
-                            ? format(subscription.initialPaymentDate, 'PPP', { locale: ja })
+                          {formData.initialPaymentDate
+                            ? format(formData.initialPaymentDate, 'PPP', { locale: ja })
                             : '未設定'}
                         </Button>
                       </PopoverTrigger>
@@ -336,8 +367,8 @@ const SubscriptionDetail = () => {
                         <Calendar
                           mode="single"
                           selected={
-                            subscription.initialPaymentDate
-                              ? new Date(subscription.initialPaymentDate)
+                            formData.initialPaymentDate
+                              ? new Date(formData.initialPaymentDate)
                               : undefined
                           }
                           onSelect={(date) =>
@@ -361,8 +392,8 @@ const SubscriptionDetail = () => {
                       disabled={true}
                     >
                       <EventRepeatRoundedIcon />
-                      {subscription.nextPaymentDate
-                        ? format(subscription.nextPaymentDate, 'PPP', { locale: ja })
+                      {formData.nextPaymentDate
+                        ? format(formData.nextPaymentDate, 'PPP', { locale: ja })
                         : '未設定'}
                     </Button>
                   </div>
@@ -371,7 +402,7 @@ const SubscriptionDetail = () => {
                   <div className="space-y-2">
                     <Label htmlFor="paymentMethod">支払い方法</Label>
                     <Select
-                      value={subscription.paymentMethod}
+                      value={formData.paymentMethod}
                       onValueChange={(value) =>
                         setFormData((prev) => ({
                           ...prev,
@@ -406,7 +437,7 @@ const SubscriptionDetail = () => {
                     <Input
                       id="url"
                       type="url"
-                      value={subscription.url}
+                      value={formData.url}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
@@ -422,7 +453,7 @@ const SubscriptionDetail = () => {
                     <Label htmlFor="notes">メモ</Label>
                     <Textarea
                       id="notes"
-                      value={subscription.notes}
+                      value={formData.notes}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
