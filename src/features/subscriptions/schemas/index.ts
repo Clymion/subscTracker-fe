@@ -49,12 +49,46 @@ export const SubscriptionCreateRequestSchema = z.object({
     .default(SubscriptionStatus.ACTIVE), // デフォルトはアクティブ
 });
 
+const foreignLabelSchema = z.object({
+  labelId: z.string(),
+  name: z.string(),
+  color: z.string().optional(),
+  usageCount: z.number().default(0),
+});
+
 export const SubscriptionSchema = z.object({
   id: z.string(),
   name: z.string(),
   price: z.number(),
   currency: z.string(),
-  frequency: z.enum([
+  paymentFrequency: z.enum([
+    SubscriptionFrequency.DAILY,
+    SubscriptionFrequency.MONTHLY,
+    SubscriptionFrequency.YEARLY,
+  ]),
+  initialPaymentDate: z.string().nullable(),
+  nextPaymentDate: z.string().nullable(),
+  paymentMethod: z.string(),
+  labels: z.array(foreignLabelSchema),
+  url: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.enum([
+    SubscriptionStatus.TRIAL,
+    SubscriptionStatus.ACTIVE,
+    SubscriptionStatus.SUSPENDED,
+    SubscriptionStatus.CANCELLED,
+    SubscriptionStatus.EXPIRED,
+  ]),
+  // createdAt: z.string(),
+  // updatedAt: z.string(),
+});
+
+export const SubscriptionUpdateRequestSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  price: z.number(),
+  currency: z.string(),
+  paymentFrequency: z.enum([
     SubscriptionFrequency.DAILY,
     SubscriptionFrequency.MONTHLY,
     SubscriptionFrequency.YEARLY,
@@ -71,7 +105,5 @@ export const SubscriptionSchema = z.object({
     SubscriptionStatus.SUSPENDED,
     SubscriptionStatus.CANCELLED,
     SubscriptionStatus.EXPIRED,
-  ]),
-  // createdAt: z.string(),
-  // updatedAt: z.string(),
+  ])
 });

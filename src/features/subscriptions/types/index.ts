@@ -4,6 +4,7 @@ import {
   SubscriptionSchema,
   SubscriptionCreateRequestSchema,
   SubscriptionSummarySchema,
+  SubscriptionUpdateRequestSchema
 } from '@/features/subscriptions/schemas';
 
 export type SubscriptionSummary = z.infer<typeof SubscriptionSummarySchema>;
@@ -23,3 +24,5 @@ export type SubscriptionResponse = {
   data: Subscription;
   meta: object;
 };
+
+export type SubscriptionUpdateRequest = z.infer<typeof SubscriptionUpdateRequestSchema>;

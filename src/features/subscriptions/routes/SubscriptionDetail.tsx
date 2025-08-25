@@ -27,8 +27,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { SubscriptionFrequency, SubscriptionStatus } from '@/constants/subscription';
 import { LabelListResponse, LabelType } from '@/features/labels/types';
-import { SubscriptionSchema } from '@/features/subscriptions/schemas';
-import { Subscription, SubscriptionResponse } from '@/features/subscriptions/types';
+import { SubscriptionUpdateRequestSchema } from '@/features/subscriptions/schemas';
+import { SubscriptionResponse, SubscriptionUpdateRequest } from '@/features/subscriptions/types';
 import apiClient from '@/lib/api-client';
 
 const SubscriptionDetail = () => {
@@ -36,12 +36,12 @@ const SubscriptionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<Subscription>({
+  const [formData, setFormData] = useState<SubscriptionUpdateRequest>({
     id: id || '',
     name: '',
     price: 0,
     currency: 'JPY',
-    frequency: SubscriptionFrequency.MONTHLY,
+    paymentFrequency: SubscriptionFrequency.MONTHLY,
     initialPaymentDate: null,
     nextPaymentDate: null,
     paymentMethod: 'credit_card',
@@ -76,17 +76,19 @@ const SubscriptionDetail = () => {
       const response = await apiClient.get<SubscriptionResponse>(`/subscriptions/${id}`, {
         headers,
       });
-      setFormData({
+      const _formData: SubscriptionUpdateRequest = {
         ...response.data,
         id: String(response.data.id),
-      });
+        labels: response.data.labels.map((label) => String(label.labelId)),
+      };
+      setFormData(_formData);
       return response.data || null;
     },
   });
 
   /** @var updateMutation - サブスクリプション編集のミューテーション */
   const updateMutation = useMutation({
-    mutationFn: async (updatedSubscription: Subscription) => {
+    mutationFn: async (updatedSubscription: SubscriptionUpdateRequest) => {
       if (!id) throw new Error('Subscription ID is required');
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -100,7 +102,12 @@ const SubscriptionDetail = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      setFormData(data);
+      const _formData: SubscriptionUpdateRequest = {
+        ...data,
+        id: String(data.id),
+        labels: data.labels.map((label) => String(label.labelId)),
+      };
+      setFormData(_formData);
       toast.success('サブスクリプションを更新しました');
     },
     onError: () => {
@@ -124,7 +131,7 @@ const SubscriptionDetail = () => {
   // 保存処理
   const handleSave = async () => {
     // バリデーションチェック
-    const validation = SubscriptionSchema.safeParse(formData);
+    const validation = SubscriptionUpdateRequestSchema.safeParse(formData);
     if (!validation.success) {
       const errorMessages = validation.error.errors
         .map((err) => `${err.path[0]}: ${err.message}`)
@@ -144,6 +151,19 @@ const SubscriptionDetail = () => {
         ? format(formData.nextPaymentDate, 'yyyy-MM-dd')
         : null,
     });
+    setIsEditing(false);
+  };
+
+  // キャンセル処理
+  const handleCancel = () => {
+    if (subscription) {
+      const _formData: SubscriptionUpdateRequest = {
+        ...subscription,
+        id: String(subscription.id),
+        labels: subscription.labels.map((label) => String(label.labelId)),
+      };
+      setFormData(_formData);
+    }
     setIsEditing(false);
   };
 
@@ -172,7 +192,7 @@ const SubscriptionDetail = () => {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => setIsEditing(false)}
+              onClick={handleCancel}
               disabled={isLoading}
             >
               キャンセル
@@ -216,6 +236,8 @@ const SubscriptionDetail = () => {
       );
     }
   }
+
+  console.log(formData.labels)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -327,7 +349,7 @@ const SubscriptionDetail = () => {
                   <div className="space-y-2">
                     <Label htmlFor="frequency">支払い頻度</Label>
                     <Select
-                      value={formData.frequency}
+                      value={formData.paymentFrequency}
                       onValueChange={(value) =>
                         setFormData((prev) => ({
                           ...prev,
