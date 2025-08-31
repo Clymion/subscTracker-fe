@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import EventRepeatRoundedIcon from '@mui/icons-material/EventRepeatRounded';
 import TodayRoundedIcon from '@mui/icons-material/TodayRounded';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { toast, Toaster } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,177 +26,369 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { SubscriptionFrequency, SubscriptionStatus } from '@/constants/subscription';
+import { LabelListResponse, LabelType } from '@/features/labels/types';
+import { SubscriptionUpdateRequestSchema } from '@/features/subscriptions/schemas';
+import { SubscriptionResponse, SubscriptionUpdateRequest } from '@/features/subscriptions/types';
+import apiClient from '@/lib/api-client';
 
 const SubscriptionDetail = () => {
+  type ValueOf<T> = T[keyof T];
   const { id } = useParams();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // サブスクリプションのデータ状態
-  const [subscription, setSubscription] = useState({
-    id: '1',
-    name: 'Netflix',
-    price: 1980,
+  const [formData, setFormData] = useState<SubscriptionUpdateRequest>({
+    id: id || '',
+    name: '',
+    price: 0,
     currency: 'JPY',
-    frequency: 'monthly',
-    initialPaymentDate: new Date('2024-01-15'),
-    nextPaymentDate: new Date('2024-11-15'),
+    paymentFrequency: SubscriptionFrequency.MONTHLY,
+    initialPaymentDate: null,
+    nextPaymentDate: null,
     paymentMethod: 'credit_card',
-    labels: ['動画', 'エンタメ'],
-    url: 'https://netflix.com',
-    notes: '4K契約プラン',
-    status: 'active',
+    labels: [],
+    url: '',
+    notes: '',
+    status: SubscriptionStatus.ACTIVE,
   });
 
-  const { toast } = useToast();
-
-  // 利用可能なラベル一覧
-  const availableLabels = ['動画', '音楽', 'エンタメ', 'クラウド', 'ビジネス', 'ストレージ'];
+  /**
+   * @var availableLabels - 利用可能なラベル一覧
+   */
+  const { data: availableLabels = [], isLoading: isLoadingLabels } = useQuery<LabelType[]>({
+    queryKey: ['labels'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      // id順にソート
+      const _labels = [...response.data.labels];
+      return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    },
+  });
 
   // データ取得
-  useEffect(() => {
-    // TODO: APIからデータを取得
-    console.log('Fetching subscription data for ID:', id);
-  }, [id]);
+  const { data: subscription, isLoading } = useQuery({
+    queryKey: [`subscription/${id}`],
+    queryFn: async () => {
+      if (!id) throw new Error('Subscription ID is required');
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await apiClient.get<SubscriptionResponse>(`/subscriptions/${id}`, {
+        headers,
+      });
+      const _formData: SubscriptionUpdateRequest = {
+        ...response.data,
+        id: String(response.data.id),
+        labels: response.data.labels.map((label) => String(label.labelId)),
+      };
+      setFormData(_formData);
+      return response.data || null;
+    },
+  });
 
-  // ラベルの切り替え
-  interface Subscription {
-    id: string;
-    name: string;
-    price: number;
-    currency: string;
-    frequency: string;
-    initialPaymentDate: Date;
-    nextPaymentDate: Date;
-    paymentMethod: string;
-    labels: string[];
-    url: string;
-    notes: string;
-    status: string;
-  }
+  /** @var updateMutation - サブスクリプション編集のミューテーション */
+  const updateMutation = useMutation({
+    mutationFn: async (updatedSubscription: SubscriptionUpdateRequest) => {
+      if (!id) throw new Error('Subscription ID is required');
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await apiClient.put<SubscriptionResponse>(
+        `/subscriptions/${id}`,
+        {
+          subscription: updatedSubscription,
+        },
+        { headers },
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      const _formData: SubscriptionUpdateRequest = {
+        ...data,
+        id: String(data.id),
+        labels: data.labels.map((label) => String(label.labelId)),
+      };
+      setFormData(_formData);
+      toast.success('サブスクリプションを更新しました');
+    },
+    onError: () => {
+      toast.error('サブスクリプションの更新に失敗しました');
+      console.error('Failed to update subscription:');
+      console.error(formData);
+    },
+  });
 
+  // 削除ミューテーション
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error('Subscription ID is required');
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await apiClient.delete(`/subscriptions/${id}`, { headers });
+    },
+    onSuccess: () => {
+      toast.success('サブスクリプションを削除しました');
+      navigate('/main');
+    },
+    onError: () => {
+      toast.error('サブスクリプションの削除に失敗しました');
+    },
+  });
+
+  // ラベルの選択/解除
   const toggleLabel = (label: string) => {
-    if (isEditing) {
-      setSubscription((prev: Subscription) => ({
-        ...prev,
-        labels: prev.labels.includes(label)
-          ? prev.labels.filter((l) => l !== label)
-          : [...prev.labels, label],
-      }));
-    }
+    if (!isEditing) return;
+    setFormData((prev) => ({
+      ...prev,
+      labels: prev.labels.includes(label)
+        ? prev.labels.filter((l) => l !== label)
+        : [...prev.labels, label],
+    }));
   };
 
   // 保存処理
   const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      // TODO: API呼び出しで更新
-      console.log('Saving subscription:', subscription);
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // モック用の遅延
-
-      setIsEditing(false);
-      toast({
-        title: '更新完了',
-        description: 'サブスクリプション情報を更新しました',
+    // バリデーションチェック
+    const validation = SubscriptionUpdateRequestSchema.safeParse(formData);
+    if (!validation.success) {
+      const errorMessages = validation.error.errors
+        .map((err) => `${err.path[0]}: ${err.message}`)
+        .join('\n');
+      toast.error('入力内容に誤りがあります', {
+        description: errorMessages,
       });
-    } catch {
-      toast({
-        title: 'エラー',
-        description: '更新に失敗しました',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(false);
+      return;
     }
+
+    updateMutation.mutate({
+      ...formData,
+      initialPaymentDate: formData.initialPaymentDate
+        ? format(formData.initialPaymentDate, 'yyyy-MM-dd')
+        : null,
+      nextPaymentDate: formData.nextPaymentDate
+        ? format(formData.nextPaymentDate, 'yyyy-MM-dd')
+        : null,
+    });
+    setIsEditing(false);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* ヘッダー */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
+  // キャンセル処理
+  const handleCancel = () => {
+    if (subscription) {
+      const _formData: SubscriptionUpdateRequest = {
+        ...subscription,
+        id: String(subscription.id),
+        labels: subscription.labels.map((label) => String(label.labelId)),
+      };
+      setFormData(_formData);
+    }
+    setIsEditing(false);
+  };
+
+  // 共通ヘッダー
+  const commonHeader = () => {
+    return (
+      <div className="flex justify-between items-center mb-8">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/main')}
+          >
+            <ArrowBackRoundedIcon />
+          </Button>
+          <h1 className="text-2xl font-bold">
+            {isEditing ? 'サブスクリプション編集' : 'サブスクリプション詳細'}
+          </h1>
+        </div>
+        {!isEditing ? (
+          <div className="flex gap-2">
             <Button
-              variant="ghost"
+              variant="destructive"
               size="icon"
-              onClick={() => navigate('/main')}
+              onClick={() => {
+                if (window.confirm('本当に削除しますか？この操作は取り消せません。')) {
+                  deleteMutation.mutate();
+                }
+              }}
+              disabled={deleteMutation.isPending === true}
+              className="mr-2"
             >
-              <ArrowBackRoundedIcon />
+              <DeleteRoundedIcon />
             </Button>
-            <h1 className="text-2xl font-bold">
-              {isEditing ? 'サブスクリプション編集' : 'サブスクリプション詳細'}
-            </h1>
-          </div>
-          {!isEditing ? (
             <Button onClick={() => setIsEditing(true)}>
               <EditRoundedIcon />
               編集
             </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsEditing(false)}
-                disabled={isSaving}
-              >
-                キャンセル
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                保存
-              </Button>
-            </div>
-          )}
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isLoading}
+            >
+              キャンセル
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isLoading}
+            >
+              保存
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ローディング中
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          {commonHeader()}
+          <div className="space-y-6">
+            {isLoading && <div className="text-center">読み込み中...</div>}
+          </div>
         </div>
+      </div>
+    );
+  } else {
+    // サブスクリプションが存在しない場合
+    if (!subscription) {
+      return (
+        <div className="min-h-screen bg-gray-50 py-8">
+          <div className="max-w-4xl mx-auto px-4">
+            {commonHeader()}
+            <div className="space-y-6">
+              <div className="text-center text-red-500">サブスクリプションが見つかりません</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <Toaster
+        richColors
+        position="bottom-right"
+      />
+      <div className="max-w-4xl mx-auto px-4">
+        {/* ヘッダー */}
+        {commonHeader()}
 
         {/* メインコンテンツ */}
         <div className="space-y-6">
-          {/* 基本情報カード */}
-          <Card>
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold">基本情報</h2>
-
-                {/* サービス名 */}
-                <div className="space-y-2">
-                  <Label htmlFor="name">サービス名</Label>
+          <>
+            {/* 基本情報カード */}
+            <Card>
+              <CardContent className="p-6 space-y-6">
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold">基本情報</h2>
+                  {/* id */}
                   <Input
-                    id="name"
-                    value={subscription.name}
-                    onChange={(e) => setSubscription((prev) => ({ ...prev, name: e.target.value }))}
-                    disabled={!isEditing}
+                    type="hidden"
+                    value={formData.id}
                   />
-                </div>
 
-                {/* 料金と通貨 */}
-                <div className="grid grid-cols-2 gap-4">
+                  {/* サービス名 */}
                   <div className="space-y-2">
-                    <Label htmlFor="price">料金</Label>
+                    <Label htmlFor="name">サービス名</Label>
                     <Input
-                      id="price"
-                      type="number"
-                      value={subscription.price}
-                      onChange={(e) =>
-                        setSubscription((prev) => ({
-                          ...prev,
-                          price: Number(e.target.value),
-                        }))
-                      }
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                       disabled={!isEditing}
                     />
                   </div>
+
+                  {/* 料金と通貨 */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price">料金</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            price: Number(e.target.value),
+                          }))
+                        }
+                        disabled={!isEditing}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="currency">通貨</Label>
+                      <Select
+                        value={formData.currency}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            currency: value,
+                          }))
+                        }
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="JPY">JPY - 日本円</SelectItem>
+                          <SelectItem value="USD">USD - 米ドル</SelectItem>
+                          <SelectItem value="EUR">EUR - ユーロ</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* ラベル */}
                   <div className="space-y-2">
-                    <Label htmlFor="currency">通貨</Label>
+                    <Label>ラベル</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {isLoadingLabels && <span className="text-gray-500">読み込み中...</span>}
+                      {!isLoadingLabels && availableLabels.length === 0 && (
+                        <span className="text-gray-500">利用可能なラベルがありません</span>
+                      )}
+                      {!isLoading &&
+                        availableLabels.length > 0 &&
+                        availableLabels.map((label) => (
+                          <Badge
+                            key={label.id}
+                            variant={
+                              formData.labels.includes(String(label.id)) ? 'default' : 'outline'
+                            }
+                            className={isEditing ? 'cursor-pointer' : ''}
+                            onClick={() => toggleLabel(String(label.id))}
+                          >
+                            {label.name}
+                          </Badge>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 支払い情報カード */}
+            <Card>
+              <CardContent className="p-6 space-y-6">
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold">支払い情報</h2>
+
+                  {/* 支払い頻度 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="frequency">支払い頻度</Label>
                     <Select
-                      value={subscription.currency}
+                      value={formData.paymentFrequency}
                       onValueChange={(value) =>
-                        setSubscription((prev) => ({
+                        setFormData((prev) => ({
                           ...prev,
-                          currency: value,
+                          frequency: value as ValueOf<typeof SubscriptionFrequency>,
                         }))
                       }
                       disabled={!isEditing}
@@ -202,175 +397,133 @@ const SubscriptionDetail = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="JPY">JPY - 日本円</SelectItem>
-                        <SelectItem value="USD">USD - 米ドル</SelectItem>
-                        <SelectItem value="EUR">EUR - ユーロ</SelectItem>
+                        <SelectItem value={SubscriptionFrequency.MONTHLY}>毎月</SelectItem>
+                        <SelectItem value={SubscriptionFrequency.YEARLY}>毎年</SelectItem>
+                        <SelectItem value={SubscriptionFrequency.DAILY}>毎週</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 初回支払日 */}
+                  <div className="space-y-2">
+                    <Label>初回支払日</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          disabled={!isEditing}
+                        >
+                          <TodayRoundedIcon />
+                          {formData.initialPaymentDate
+                            ? format(formData.initialPaymentDate, 'PPP', { locale: ja })
+                            : '未設定'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={
+                            formData.initialPaymentDate
+                              ? new Date(formData.initialPaymentDate)
+                              : undefined
+                          }
+                          onSelect={(date) =>
+                            date &&
+                            setFormData((prev) => ({
+                              ...prev,
+                              initialPaymentDate: date ? format(date, 'yyyy-MM-dd') : null,
+                            }))
+                          }
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {/* 次回支払日 */}
+                  <div className="space-y-2">
+                    <Label>次回支払日</Label>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      disabled={true}
+                    >
+                      <EventRepeatRoundedIcon />
+                      {formData.nextPaymentDate
+                        ? format(formData.nextPaymentDate, 'PPP', { locale: ja })
+                        : '未設定'}
+                    </Button>
+                  </div>
+
+                  {/* 支払い方法 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="paymentMethod">支払い方法</Label>
+                    <Select
+                      value={formData.paymentMethod}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          paymentMethod: value,
+                        }))
+                      }
+                      disabled={!isEditing}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="credit_card">クレジットカード</SelectItem>
+                        <SelectItem value="bank_transfer">銀行振込</SelectItem>
+                        <SelectItem value="convenience_store">コンビニ決済</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* ラベル */}
-                <div className="space-y-2">
-                  <Label>ラベル</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableLabels.map((label) => (
-                      <Badge
-                        key={label}
-                        variant={subscription.labels.includes(label) ? 'default' : 'outline'}
-                        className={isEditing ? 'cursor-pointer' : ''}
-                        onClick={() => toggleLabel(label)}
-                      >
-                        {label}
-                      </Badge>
-                    ))}
+            {/* その他情報カード */}
+            <Card>
+              <CardContent className="p-6 space-y-6">
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold">その他情報</h2>
+
+                  {/* URL */}
+                  <div className="space-y-2">
+                    <Label htmlFor="url">URL</Label>
+                    <Input
+                      id="url"
+                      type="url"
+                      value={formData.url}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          url: e.target.value,
+                        }))
+                      }
+                      disabled={!isEditing}
+                    />
+                  </div>
+
+                  {/* メモ */}
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">メモ</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          notes: e.target.value,
+                        }))
+                      }
+                      disabled={!isEditing}
+                    />
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 支払い情報カード */}
-          <Card>
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold">支払い情報</h2>
-
-                {/* 支払い頻度 */}
-                <div className="space-y-2">
-                  <Label htmlFor="frequency">支払い頻度</Label>
-                  <Select
-                    value={subscription.frequency}
-                    onValueChange={(value) =>
-                      setSubscription((prev) => ({
-                        ...prev,
-                        frequency: value,
-                      }))
-                    }
-                    disabled={!isEditing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">毎月</SelectItem>
-                      <SelectItem value="yearly">毎年</SelectItem>
-                      <SelectItem value="weekly">毎週</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* 初回支払日 */}
-                <div className="space-y-2">
-                  <Label>初回支払日</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                        disabled={!isEditing}
-                      >
-                        <TodayRoundedIcon />
-                        {format(subscription.initialPaymentDate, 'PPP', { locale: ja })}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={subscription.initialPaymentDate}
-                        onSelect={(date) =>
-                          date &&
-                          setSubscription((prev) => ({
-                            ...prev,
-                            initialPaymentDate: date,
-                          }))
-                        }
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* 次回支払日 */}
-                <div className="space-y-2">
-                  <Label>次回支払日</Label>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                    disabled={true}
-                  >
-                    <EventRepeatRoundedIcon />
-                    {format(subscription.nextPaymentDate, 'PPP', { locale: ja })}
-                  </Button>
-                </div>
-
-                {/* 支払い方法 */}
-                <div className="space-y-2">
-                  <Label htmlFor="paymentMethod">支払い方法</Label>
-                  <Select
-                    value={subscription.paymentMethod}
-                    onValueChange={(value) =>
-                      setSubscription((prev) => ({
-                        ...prev,
-                        paymentMethod: value,
-                      }))
-                    }
-                    disabled={!isEditing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="credit_card">クレジットカード</SelectItem>
-                      <SelectItem value="bank_transfer">銀行振込</SelectItem>
-                      <SelectItem value="convenience_store">コンビニ決済</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* その他情報カード */}
-          <Card>
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold">その他情報</h2>
-
-                {/* URL */}
-                <div className="space-y-2">
-                  <Label htmlFor="url">URL</Label>
-                  <Input
-                    id="url"
-                    type="url"
-                    value={subscription.url}
-                    onChange={(e) =>
-                      setSubscription((prev) => ({
-                        ...prev,
-                        url: e.target.value,
-                      }))
-                    }
-                    disabled={!isEditing}
-                  />
-                </div>
-
-                {/* メモ */}
-                <div className="space-y-2">
-                  <Label htmlFor="notes">メモ</Label>
-                  <Textarea
-                    id="notes"
-                    value={subscription.notes}
-                    onChange={(e) =>
-                      setSubscription((prev) => ({
-                        ...prev,
-                        notes: e.target.value,
-                      }))
-                    }
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </>
         </div>
       </div>
     </div>

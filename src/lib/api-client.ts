@@ -22,6 +22,26 @@ const toCamelCase = (obj: any): any => {
 };
 
 /**
+ * オブジェクトのキーをキャメルケースからスネークケースに変換するユーティリティ関数
+ * @param obj 変換対象のオブジェクト
+ * @returns スネークケースのキーを持つオブジェクト
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const toSnakeCase = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(toSnakeCase);
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj).reduce((result, key) => {
+      const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      result[snakeKey] = toSnakeCase(obj[key]);
+      return result;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }, {} as any);
+  }
+  return obj;
+};
+
+/**
  * APIレスポンスを処理し、エラーがあればスローする
  * @param response Fetch APIのレスポンスオブジェクト
  * @return レスポンスのJSONデータ（ボディがない場合は null）
@@ -95,7 +115,7 @@ const apiClient = {
       const response = await fetch(`${env.BACKEND_BASE_URL}${url}`, {
         ...options,
         method: 'POST',
-        body: JSON.stringify(body),
+        body: JSON.stringify(toSnakeCase(body)),
         headers: {
           'Content-Type': 'application/json',
           ...options?.headers,
@@ -127,7 +147,7 @@ const apiClient = {
       const response = await fetch(`${env.BACKEND_BASE_URL}${url}`, {
         ...options,
         method: 'PUT',
-        body: JSON.stringify(body),
+        body: JSON.stringify(toSnakeCase(body)),
         headers: {
           'Content-Type': 'application/json',
           ...options?.headers,

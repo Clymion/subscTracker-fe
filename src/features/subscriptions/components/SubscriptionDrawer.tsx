@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 
 import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,18 +21,11 @@ import {
 } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
-
-interface SubscriptionForm {
-  name: string;
-  price: string;
-  currency: string;
-  frequency: string;
-  initialPaymentDate: Date | null;
-  paymentMethod: string;
-  labels: string[];
-  url?: string;
-  notes?: string;
-}
+import { SubscriptionStatus, SubscStatusToText } from '@/constants/subscription';
+import { LabelListResponse, LabelType } from '@/features/labels/types';
+import { SubscriptionCreateRequestSchema } from '@/features/subscriptions/schemas';
+import { SubscriptionCreateRequest } from '@/features/subscriptions/types';
+import apiClient from '@/lib/api-client';
 
 interface SubscriptionDrawerProps {
   open: boolean;
@@ -39,20 +34,34 @@ interface SubscriptionDrawerProps {
 
 const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => {
   // フォームの状態管理
-  const [formData, setFormData] = useState<SubscriptionForm>({
+  // FIXME
+  const [formData, setFormData] = useState<SubscriptionCreateRequest>({
     name: '',
-    price: '',
+    price: 0,
     currency: 'JPY',
     frequency: 'monthly',
-    initialPaymentDate: new Date(),
+    initialPaymentDate: new Date().toISOString().split('T')[0], // 今日の日付
     paymentMethod: 'credit_card',
     labels: [],
     url: '',
     notes: '',
+    status: SubscriptionStatus.ACTIVE, // デフォルトはアクティブ
   });
 
-  // 利用可能なラベル一覧（実際にはDBから取得）
-  const availableLabels = ['動画', '音楽', 'エンタメ', 'クラウド', 'ビジネス', 'ストレージ'];
+  /**
+   * @var availableLabels - 利用可能なラベル一覧
+   */
+  const { data: availableLabels = [], isLoading } = useQuery<LabelType[]>({
+    queryKey: ['labels'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      // id順にソート
+      const _labels = [...response.data.labels];
+      return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    },
+  });
 
   // ラベルの選択/解除
   const toggleLabel = (label: string) => {
@@ -64,11 +73,43 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
     }));
   };
 
+  const queryClient = useQueryClient();
+  /** @var registerMutation - サブスクリプション登録のミューテーション */
+  const registerMutation = useMutation({
+    mutationFn: async (data: SubscriptionCreateRequest) => {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return await apiClient.post('/subscriptions', data, { headers });
+    },
+    onSuccess: () => {
+      toast.success('サブスクリプションを登録しました');
+      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+    },
+    onError: (error) => {
+      console.error('Subscription registration failed:', error);
+      toast.error('サブスクリプションの登録に失敗しました', {
+        description: error ? error.message : '不明なエラーが発生しました',
+      });
+    },
+  });
+
   // フォーム送信
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
-    // TODO: API呼び出し
+    // バリデーション
+    const validation = SubscriptionCreateRequestSchema.safeParse(formData);
+    if (!validation.success) {
+      const errorMessages = validation.error.errors
+        .map((err) => `${err.path[0]}: ${err.message}`)
+        .join('\n');
+      toast.error('入力内容に誤りがあります', {
+        description: errorMessages,
+      });
+      return;
+    }
+    registerMutation.mutate(formData);
     onOpenChange(false);
   };
 
@@ -104,7 +145,9 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
                   id="price"
                   type="number"
                   value={formData.price}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, price: parseFloat(e.target.value) }))
+                  }
                   placeholder="例: 1980"
                   required
                 />
@@ -132,7 +175,12 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
               <Label htmlFor="frequency">支払い頻度 *</Label>
               <Select
                 value={formData.frequency}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, frequency: value }))}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    frequency: value as 'daily' | 'monthly' | 'yearly',
+                  }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -165,9 +213,16 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={formData.initialPaymentDate ?? undefined}
+                    selected={
+                      formData.initialPaymentDate
+                        ? new Date(formData.initialPaymentDate)
+                        : undefined
+                    }
                     onSelect={(date) =>
-                      setFormData((prev) => ({ ...prev, initialPaymentDate: date ?? null }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        initialPaymentDate: date ? date.toISOString().split('T')[0] : null,
+                      }))
                     }
                   />
                 </PopoverContent>
@@ -198,16 +253,23 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
             <div className="space-y-2">
               <Label>ラベル</Label>
               <div className="flex flex-wrap gap-2">
-                {availableLabels.map((label) => (
-                  <Badge
-                    key={label}
-                    variant={formData.labels.includes(label) ? 'default' : 'outline'}
-                    className="cursor-pointer"
-                    onClick={() => toggleLabel(label)}
-                  >
-                    {label}
-                  </Badge>
-                ))}
+                {isLoading && <span className="text-gray-500">読み込み中...</span>}
+                {!isLoading && availableLabels.length === 0 && (
+                  <span className="text-gray-500">利用可能なラベルがありません</span>
+                )}
+                {!isLoading &&
+                  availableLabels.length > 0 &&
+                  availableLabels.map((label) => (
+                    <Badge
+                      key={label.id}
+                      variant={formData.labels.includes(String(label.id)) ? 'default' : 'outline'}
+                      className="cursor-pointer"
+                      // FIXME: 本来は label.name ではなく label.id を使用するべき
+                      onClick={() => toggleLabel(String(label.id))}
+                    >
+                      {label.name}
+                    </Badge>
+                  ))}
               </div>
             </div>
 
@@ -232,6 +294,34 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 placeholder="備考やメモを入力"
               />
+            </div>
+
+            {/* ステータス */}
+            <div className="space-y-2">
+              <Label htmlFor="status">ステータス</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    status: value as (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus],
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(SubscriptionStatus).map((status) => (
+                    <SelectItem
+                      key={status}
+                      value={status}
+                    >
+                      {SubscStatusToText[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
