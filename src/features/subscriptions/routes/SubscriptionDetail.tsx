@@ -69,7 +69,7 @@ const SubscriptionDetail = () => {
 
   // データ取得
   const { data: subscription, isLoading } = useQuery({
-    queryKey: [`subscription/${id}`,],
+    queryKey: [`subscription/${id}`],
     queryFn: async () => {
       if (!id) throw new Error('Subscription ID is required');
       const token = localStorage.getItem('token');
@@ -240,19 +240,19 @@ const SubscriptionDetail = () => {
         )}
       </div>
     );
-  }
+  };
 
   // ローディング中
   if (isLoading) {
     return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {commonHeader()}
-        <div className="space-y-6">
-          {isLoading && <div className="text-center">読み込み中...</div>}
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          {commonHeader()}
+          <div className="space-y-6">
+            {isLoading && <div className="text-center">読み込み中...</div>}
+          </div>
         </div>
       </div>
-    </div>
     );
   } else {
     // サブスクリプションが存在しない場合
@@ -289,7 +289,10 @@ const SubscriptionDetail = () => {
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold">基本情報</h2>
                   {/* id */}
-                  <Input type="hidden" value={formData.id} />
+                  <Input
+                    type="hidden"
+                    value={formData.id}
+                  />
 
                   {/* サービス名 */}
                   <div className="space-y-2">
@@ -356,14 +359,15 @@ const SubscriptionDetail = () => {
                         availableLabels.map((label) => (
                           <Badge
                             key={label.id}
-                            variant={formData.labels.includes(String(label.id)) ? 'default' : 'outline'}
+                            variant={
+                              formData.labels.includes(String(label.id)) ? 'default' : 'outline'
+                            }
                             className={isEditing ? 'cursor-pointer' : ''}
                             onClick={() => toggleLabel(String(label.id))}
                           >
                             {label.name}
                           </Badge>
-                        ))
-                      }
+                        ))}
                     </div>
                   </div>
                 </div>

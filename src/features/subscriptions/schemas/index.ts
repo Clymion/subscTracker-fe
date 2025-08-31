@@ -105,5 +105,5 @@ export const SubscriptionUpdateRequestSchema = z.object({
     SubscriptionStatus.SUSPENDED,
     SubscriptionStatus.CANCELLED,
     SubscriptionStatus.EXPIRED,
-  ])
+  ]),
 });

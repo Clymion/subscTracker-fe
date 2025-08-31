@@ -4,7 +4,7 @@ import {
   SubscriptionSchema,
   SubscriptionCreateRequestSchema,
   SubscriptionSummarySchema,
-  SubscriptionUpdateRequestSchema
+  SubscriptionUpdateRequestSchema,
 } from '@/features/subscriptions/schemas';
 
 export type SubscriptionSummary = z.infer<typeof SubscriptionSummarySchema>;
