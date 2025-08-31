@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import EventRepeatRoundedIcon from '@mui/icons-material/EventRepeatRounded';
 import TodayRoundedIcon from '@mui/icons-material/TodayRounded';
@@ -117,6 +118,23 @@ const SubscriptionDetail = () => {
     },
   });
 
+  // 削除ミューテーション
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error('Subscription ID is required');
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await apiClient.delete(`/subscriptions/${id}`, { headers });
+    },
+    onSuccess: () => {
+      toast.success('サブスクリプションを削除しました');
+      navigate('/main');
+    },
+    onError: () => {
+      toast.error('サブスクリプションの削除に失敗しました');
+    },
+  });
+
   // ラベルの選択/解除
   const toggleLabel = (label: string) => {
     if (!isEditing) return;
@@ -184,10 +202,25 @@ const SubscriptionDetail = () => {
           </h1>
         </div>
         {!isEditing ? (
-          <Button onClick={() => setIsEditing(true)}>
-            <EditRoundedIcon />
-            編集
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              size="icon"
+              onClick={() => {
+                if (window.confirm('本当に削除しますか？この操作は取り消せません。')) {
+                  deleteMutation.mutate();
+                }
+              }}
+              disabled={deleteMutation.isPending === true}
+              className="mr-2"
+            >
+              <DeleteRoundedIcon />
+            </Button>
+            <Button onClick={() => setIsEditing(true)}>
+              <EditRoundedIcon />
+              編集
+            </Button>
+          </div>
         ) : (
           <div className="flex gap-2">
             <Button
@@ -236,8 +269,6 @@ const SubscriptionDetail = () => {
       );
     }
   }
-
-  console.log(formData.labels)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
