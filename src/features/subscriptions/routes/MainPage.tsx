@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SubscriptionFreqDisplay, SubscriptionFrequency } from '@/constants/subscription';
+import { useExchangeRates } from '@/features/settings/hooks/useExchangeRates';
 import { SubscriptionSummaryResponse, SubscriptionSummary } from '@/features/subscriptions/types';
 import apiClient from '@/lib/api-client';
 
@@ -106,15 +107,37 @@ const MainPage = () => {
     });
   }, [subscriptions, periodUnit]);
 
-  /**
-   * @description 表示用データに基づいて合計金額を計算する
-   */
-  const totalPrice = useMemo(() => {
-    return displaySubscriptions.reduce((sum, sub) => sum + sub.displayPrice, 0);
-  }, [displaySubscriptions]);
+  // 今月の1日
+  const startOfMonth = (new Date()).setDate(1);
+  // TODO: ユーザー設定から取得する
+  const baseCurrency = 'JPY';
+  const { data: exchangeRates } = useExchangeRates({
+    date: new Date(startOfMonth).toISOString().split('T')[0],
+    base_currency: baseCurrency,
+  });
 
   /**
-   * @description 合計金額の表示テキストを生成する
+   * @description 表示用データに基づいて合計金額を計算する \
+   * 合計金額の通貨単位は`USER_SETTINGS.base_currency`に従うものとする
+   */
+  const totalPrice = useMemo(() => {
+    return displaySubscriptions.reduce((sum, sub) => {
+      if (sub.currency === baseCurrency) {
+        return sum + sub.displayPrice;
+      }
+      // 為替レートの`from`が`sub.currency`、`to`が`baseCurrency`
+      const rate = exchangeRates?.rates[sub.currency];
+      console.log('rate', rate);
+      if (!rate) {
+        throw new Error(`No exchange rate found for ${baseCurrency}`);
+      }
+      return sum + sub.displayPrice / rate;
+    }, 0);
+  }, [displaySubscriptions, exchangeRates?.rates]);
+
+  /**
+   * @description 合計金額の表示テキストを生成する \
+   * 合計金額の通貨単位は`USER_SETTINGS.base_currency`に従うものとする
    */
   const totalPriceText = useMemo(() => {
     const unitText =
@@ -123,7 +146,6 @@ const MainPage = () => {
         : periodUnit === SubscriptionFreqDisplay.MONTH
           ? '月'
           : '年';
-    // TODO: 通貨単位(円/ドルなど)の正規化
     // toLocaleString() で3桁区切りにし、Math.round() で端数を丸める
     return (
       <>

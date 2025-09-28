@@ -1,5 +1,5 @@
 {
-	"name": "Existing Docker Compose (Extend)",
+	"name": "SubscTracker Frontend",
 	"dockerComposeFile": [
 		"../compose.yml"
 		// "docker-compose.yml"
@@ -19,7 +19,8 @@
 				"github.copilot",
 				"GitHub.vscode-pull-request-github",
 				"saoudrizwan.claude-dev",
-				"humao.rest-client"
+				"humao.rest-client",
+				"Google.gemini-cli-vscode-ide-companion"
 			]
         }
     },
