@@ -25,7 +25,7 @@ import { SubscriptionStatus, SubscStatusToText } from '@/constants/subscription'
 import { LabelListResponse, LabelType } from '@/features/labels/types';
 import { SubscriptionCreateRequestSchema } from '@/features/subscriptions/schemas';
 import { SubscriptionCreateRequest } from '@/features/subscriptions/types';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 
 interface SubscriptionDrawerProps {
   open: boolean;
@@ -54,9 +54,7 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
   const { data: availableLabels = [], isLoading } = useQuery<LabelType[]>({
     queryKey: ['labels'],
     queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      const response = await api.get<LabelListResponse>('/labels');
       // id順にソート
       const _labels = [...response.data.labels];
       return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
@@ -77,9 +75,7 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
   /** @var registerMutation - サブスクリプション登録のミューテーション */
   const registerMutation = useMutation({
     mutationFn: async (data: SubscriptionCreateRequest) => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      return await apiClient.post('/subscriptions', data, { headers });
+      return await api.post('/subscriptions', data);
     },
     onSuccess: () => {
       toast.success('サブスクリプションを登録しました');

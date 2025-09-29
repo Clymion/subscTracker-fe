@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 
 import { ExchangeRate, ExchangeRateResponse, UseExchangeRatesParams } from '../types';
 
@@ -10,13 +10,10 @@ import { ExchangeRate, ExchangeRateResponse, UseExchangeRatesParams } from '../t
  * @returns A promise that resolves to the exchange rate data.
  */
 export const getExchangeRates = async (params: UseExchangeRatesParams): Promise<ExchangeRate> => {
-  const token = localStorage.getItem('token');
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
   // URLにGETパラメータを入れる
   const queryString = new URLSearchParams(params as Record<string, string>).toString();
   const url = queryString ? `/exchange-rates?${queryString}` : '/exchange-rates';
-
-  const response = await apiClient.get<ExchangeRateResponse>(url, { headers });
+  const response = await api.get<ExchangeRateResponse>(url);
   return response.data;
 };
 

@@ -18,7 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SubscriptionFreqDisplay, SubscriptionFrequency } from '@/constants/subscription';
 import { useExchangeRates } from '@/features/settings/hooks/useExchangeRates';
 import { SubscriptionSummaryResponse, SubscriptionSummary } from '@/features/subscriptions/types';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 
 // FIXME: フィルターアイコンと並び替えアイコンがわかりにくい
 
@@ -53,11 +53,7 @@ const MainPage = () => {
   const { data: subscriptions = [], isLoading } = useQuery<SubscriptionSummary[]>({
     queryKey: ['subscriptions'],
     queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.get<SubscriptionSummaryResponse>('/subscriptions', {
-        headers,
-      });
+      const response = await api.get<SubscriptionSummaryResponse>('/subscriptions');
       return response.data.subscriptions;
     },
     refetchOnWindowFocus: false,
@@ -126,14 +122,13 @@ const MainPage = () => {
         return sum + sub.displayPrice;
       }
       // 為替レートの`from`が`sub.currency`、`to`が`baseCurrency`
-      const rate = exchangeRates?.rates[sub.currency];
-      console.log('rate', rate);
-      if (!rate) {
-        throw new Error(`No exchange rate found for ${baseCurrency}`);
+      if (!exchangeRates) {
+        return 0;
       }
+      const rate = exchangeRates.rates[sub.currency];
       return sum + sub.displayPrice / rate;
     }, 0);
-  }, [displaySubscriptions, exchangeRates?.rates]);
+  }, [displaySubscriptions, exchangeRates, baseCurrency]);
 
   /**
    * @description 合計金額の表示テキストを生成する \
@@ -208,7 +203,6 @@ const MainPage = () => {
 
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <p className="text-gray-900 font-medium">{totalPriceText}</p>
               <ToggleGroup
                 type="single"
                 value={periodUnit}
@@ -217,10 +211,10 @@ const MainPage = () => {
                 }}
               >
                 <ToggleGroupItem
-                  value={SubscriptionFreqDisplay.DAY}
+                  value={SubscriptionFreqDisplay.YEAR}
                   className="px-2"
                 >
-                  日
+                  年
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value={SubscriptionFreqDisplay.MONTH}
@@ -229,12 +223,13 @@ const MainPage = () => {
                   月
                 </ToggleGroupItem>
                 <ToggleGroupItem
-                  value={SubscriptionFreqDisplay.YEAR}
+                  value={SubscriptionFreqDisplay.DAY}
                   className="px-2"
                 >
-                  年
+                  日
                 </ToggleGroupItem>
               </ToggleGroup>
+              <p className="text-gray-900 font-medium w-44">{totalPriceText}</p>
             </div>
             <div className="flex gap-2">
               <Button

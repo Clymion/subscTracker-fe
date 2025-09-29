@@ -38,7 +38,7 @@ import {
   LabelPostRequest,
   LabelPutRequest,
 } from '@/features/labels/types';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 
 /**
  * ラベル設定ページのコンポーネント
@@ -56,9 +56,7 @@ const LabelSettings = () => {
   const { data: labels = [], isLoading } = useQuery<LabelType[]>({
     queryKey: ['labels'],
     queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      const response = await api.get<LabelListResponse>('/labels');
       // id順にソート
       const _labels = [...response.data.labels];
       return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
@@ -68,9 +66,7 @@ const LabelSettings = () => {
   /** @var registerMutation - ラベルを新規登録するためのミューテーションフック */
   const registerMutation = useMutation({
     mutationFn: async (label: LabelPostRequest) => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      return await apiClient.post<LabelPostRequest>('/labels', label, { headers });
+      return await api.post<LabelPostRequest>('/labels', label);
     },
     onSuccess: () => {
       toast.success('ラベルが作成されました');
@@ -103,11 +99,7 @@ const LabelSettings = () => {
   /** @var editMutation - ラベルを更新するためのミューテーションフック */
   const editMutation = useMutation({
     mutationFn: async (label: LabelPutRequest) => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      return await apiClient.put<LabelPutRequest>(`/labels/${selectedLabel?.id}`, label, {
-        headers,
-      });
+      return await api.put<LabelPutRequest>(`/labels/${selectedLabel?.id}`, label);
     },
     onSuccess: () => {
       toast.success('ラベルが更新されました');
@@ -143,9 +135,7 @@ const LabelSettings = () => {
   /** @var deleteMutation - ラベルを削除するためのミューテーションフック */
   const deleteMutation = useMutation({
     mutationFn: async (labelId: string) => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      return await apiClient.delete(`/labels/${labelId}`, { headers });
+      return await api.delete(`/labels/${labelId}`);
     },
     onSuccess: () => {
       toast.success('ラベルが削除されました');
