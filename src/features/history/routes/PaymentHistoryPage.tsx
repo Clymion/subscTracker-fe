@@ -28,13 +28,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import PaymentRecordDrawer from '@/features/history/components/PaymentRecordDrawer';
 
 import FilterDialog, {
   PayHistoryFilterOptions,
   SubscFilterOptions,
 } from '../../subscriptions/components/FilterDialog';
 import SortDialog from '../../subscriptions/components/SortDialog';
+import PaymentRecordDrawer, {
+  PaymentRecord,
+  payHistoryFormSchema,
+} from '../components/PaymentRecordDrawer';
 
 const PaymentHistoryPage = () => {
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
