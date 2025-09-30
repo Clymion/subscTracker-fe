@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { signUpSchema } from '@/features/auth/schemas';
 import { RegisterRequest, RegisterResponse, SignUpData } from '@/features/auth/types';
-import apiClient from '@/lib/api-client';
+import { publicApi } from '@/lib/api-client';
 import { CustomApiError } from '@/types/api';
 
 type SignUpError = z.inferFormattedError<typeof signUpSchema> | null;
@@ -40,7 +40,7 @@ const RegisterPage = () => {
 
   const registerMutation = useMutation<RegisterResponse, CustomApiError, RegisterRequest>({
     mutationFn: async (request) => {
-      return await apiClient.post<RegisterResponse>('/auth/register', request);
+      return await publicApi.post<RegisterResponse>('/auth/register', request);
     },
     onSuccess: () => {
       toast.success('登録が完了しました。ログイン画面に移動します。');

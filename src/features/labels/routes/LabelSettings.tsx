@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
+import { SideNavigation } from '@/components/layout/SideNavigation';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +39,7 @@ import {
   LabelPostRequest,
   LabelPutRequest,
 } from '@/features/labels/types';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 
 /**
  * ラベル設定ページのコンポーネント
@@ -56,9 +57,7 @@ const LabelSettings = () => {
   const { data: labels = [], isLoading } = useQuery<LabelType[]>({
     queryKey: ['labels'],
     queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      const response = await api.get<LabelListResponse>('/labels');
       // id順にソート
       const _labels = [...response.data.labels];
       return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
@@ -68,9 +67,7 @@ const LabelSettings = () => {
   /** @var registerMutation - ラベルを新規登録するためのミューテーションフック */
   const registerMutation = useMutation({
     mutationFn: async (label: LabelPostRequest) => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      return await apiClient.post<LabelPostRequest>('/labels', label, { headers });
+      return await api.post<LabelPostRequest>('/labels', label);
     },
     onSuccess: () => {
       toast.success('ラベルが作成されました');
@@ -103,11 +100,7 @@ const LabelSettings = () => {
   /** @var editMutation - ラベルを更新するためのミューテーションフック */
   const editMutation = useMutation({
     mutationFn: async (label: LabelPutRequest) => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      return await apiClient.put<LabelPutRequest>(`/labels/${selectedLabel?.id}`, label, {
-        headers,
-      });
+      return await api.put<LabelPutRequest>(`/labels/${selectedLabel?.id}`, label);
     },
     onSuccess: () => {
       toast.success('ラベルが更新されました');
@@ -143,9 +136,7 @@ const LabelSettings = () => {
   /** @var deleteMutation - ラベルを削除するためのミューテーションフック */
   const deleteMutation = useMutation({
     mutationFn: async (labelId: string) => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      return await apiClient.delete(`/labels/${labelId}`, { headers });
+      return await api.delete(`/labels/${labelId}`);
     },
     onSuccess: () => {
       toast.success('ラベルが削除されました');
@@ -173,39 +164,7 @@ const LabelSettings = () => {
         richColors
         position="bottom-right"
       />
-      {/* PCサイドナビゲーション - lg以上で表示 */}
-      {/* FIXME: 共通化 */}
-      <div className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r p-4">
-        <div className="mb-8">
-          <h1 className="text-xl font-bold text-gray-900">SubsTracker</h1>
-        </div>
-        <nav className="space-y-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => navigate('/home')}
-          >
-            <HomeRoundedIcon style={{ fontSize: '24px' }} />
-            ホーム
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => navigate('/payment-history')}
-          >
-            <HistoryRoundedIcon />
-            支払い履歴
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => navigate('/settings')}
-          >
-            <SettingsRoundedIcon />
-            設定
-          </Button>
-        </nav>
-      </div>
+      <SideNavigation />
 
       {/* メインコンテンツ */}
       <div className="lg:ml-64 p-4 pb-20 lg:pb-4">

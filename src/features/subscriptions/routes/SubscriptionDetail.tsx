@@ -30,7 +30,7 @@ import { SubscriptionFrequency, SubscriptionStatus } from '@/constants/subscript
 import { LabelListResponse, LabelType } from '@/features/labels/types';
 import { SubscriptionUpdateRequestSchema } from '@/features/subscriptions/schemas';
 import { SubscriptionResponse, SubscriptionUpdateRequest } from '@/features/subscriptions/types';
-import apiClient from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 
 const SubscriptionDetail = () => {
   type ValueOf<T> = T[keyof T];
@@ -58,9 +58,7 @@ const SubscriptionDetail = () => {
   const { data: availableLabels = [], isLoading: isLoadingLabels } = useQuery<LabelType[]>({
     queryKey: ['labels'],
     queryFn: async () => {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.get<LabelListResponse>('/labels', { headers });
+      const response = await api.get<LabelListResponse>('/labels');
       // id順にソート
       const _labels = [...response.data.labels];
       return _labels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
@@ -72,11 +70,7 @@ const SubscriptionDetail = () => {
     queryKey: [`subscription/${id}`],
     queryFn: async () => {
       if (!id) throw new Error('Subscription ID is required');
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.get<SubscriptionResponse>(`/subscriptions/${id}`, {
-        headers,
-      });
+      const response = await api.get<SubscriptionResponse>(`/subscriptions/${id}`);
       const _formData: SubscriptionUpdateRequest = {
         ...response.data,
         id: String(response.data.id),
@@ -91,14 +85,11 @@ const SubscriptionDetail = () => {
   const updateMutation = useMutation({
     mutationFn: async (updatedSubscription: SubscriptionUpdateRequest) => {
       if (!id) throw new Error('Subscription ID is required');
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.put<SubscriptionResponse>(
+      const response = await api.put<SubscriptionResponse>(
         `/subscriptions/${id}`,
         {
           subscription: updatedSubscription,
         },
-        { headers },
       );
       return response.data;
     },
@@ -122,9 +113,7 @@ const SubscriptionDetail = () => {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!id) throw new Error('Subscription ID is required');
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      await apiClient.delete(`/subscriptions/${id}`, { headers });
+      await api.delete(`/subscriptions/${id}`);
     },
     onSuccess: () => {
       toast.success('サブスクリプションを削除しました');

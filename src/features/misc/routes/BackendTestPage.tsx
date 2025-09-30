@@ -6,11 +6,11 @@ import { AlertCircle, CheckCircle, ChevronLeft, Server } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import apiClient from '@/lib/api-client';
+import { publicApi } from '@/lib/api-client';
 
 // APIからテストデータを取得する非同期関数
 const getTestData = () => {
-  return apiClient.get<{ message: string }>('/health');
+  return publicApi.get<{ message: string }>('/health');
 };
 
 const BackendTestPage = () => {

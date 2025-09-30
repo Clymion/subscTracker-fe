@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoginRequest, LoginResponse } from '@/features/auth/types';
-import apiClient from '@/lib/api-client';
+import { publicApi, authUtils } from '@/lib/api-client';
 import { CustomApiError } from '@/types/api';
 
 /**
@@ -23,11 +23,11 @@ const LoginPage = () => {
 
   const loginMutation = useMutation<LoginResponse, CustomApiError, LoginRequest>({
     mutationFn: async (credentials) => {
-      const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
+      const response = await publicApi.post<LoginResponse>('/auth/login', credentials);
       return response;
     },
     onSuccess: (data) => {
-      localStorage.setItem('token', data.token);
+      authUtils.saveTokens(data.token, data.refreshToken);
       navigate('/home');
     },
     onError: (error) => {
