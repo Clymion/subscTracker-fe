@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
+import { SideNavigation } from '@/components/layout/SideNavigation';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -163,39 +164,7 @@ const LabelSettings = () => {
         richColors
         position="bottom-right"
       />
-      {/* PCサイドナビゲーション - lg以上で表示 */}
-      {/* FIXME: 共通化 */}
-      <div className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r p-4">
-        <div className="mb-8">
-          <h1 className="text-xl font-bold text-gray-900">SubsTracker</h1>
-        </div>
-        <nav className="space-y-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => navigate('/home')}
-          >
-            <HomeRoundedIcon style={{ fontSize: '24px' }} />
-            ホーム
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => navigate('/payment-history')}
-          >
-            <HistoryRoundedIcon />
-            支払い履歴
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => navigate('/settings')}
-          >
-            <SettingsRoundedIcon />
-            設定
-          </Button>
-        </nav>
-      </div>
+      <SideNavigation />
 
       {/* メインコンテンツ */}
       <div className="lg:ml-64 p-4 pb-20 lg:pb-4">
