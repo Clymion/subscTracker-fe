@@ -65,7 +65,7 @@ StatusResponse:
     service:
       type: string
       description: サービス名
-      example: substracker-api
+      example: subsctracker-api
     status:
       type: string
       description: サービス全体の運用状態
