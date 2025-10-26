@@ -23,16 +23,20 @@ sudo chown $USER:$USER node_modules/
 ```
 
 ### firebaseへの初期化とデプロイ
+初期化で実行すること
 ```sh
-# 初期化
 pnpm setup
 source /home/node/.bashrc
 pnpm -g i firebase-tools
 firebase login
 firebase init
+```
 
-# デプロイ
+デプロイ時の手順
+**`.env`のURLを切り替えること!**
+```
 pnpm build
+firebase login
 firebase deploy
 ```
 
