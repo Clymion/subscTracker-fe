@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import CurrencyExchangeRoundedIcon from '@mui/icons-material/CurrencyExchangeRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
-import SortRoundedIcon from '@mui/icons-material/SortRounded';
+import SwapVertIcon from '@mui/icons-material/SwapVert';
 import { z } from 'zod';
 
 import { SideNavigation } from '@/components/layout/SideNavigation';
@@ -33,76 +34,110 @@ import FilterDialog, {
   PayHistoryFilterOptions,
   SubscFilterOptions,
 } from '../../subscriptions/components/FilterDialog';
-import SortDialog from '../../subscriptions/components/SortDialog';
 import PaymentRecordDrawer, {
   PaymentRecord,
   payHistoryFormSchema,
 } from '../components/PaymentRecordDrawer';
 
+// サンプルデータ
+const paymentHistory = [
+  {
+    id: 1,
+    subscriptionId: 'netflix-1',
+    subscriptionName: 'Netflix',
+    amount: 1980,
+    currency: 'JPY',
+    paymentDate: '2024-12-15',
+    paymentMethod: 'クレジットカード',
+    exchangeRate: null,
+  },
+  {
+    id: 2,
+    subscriptionId: 'aws-2',
+    subscriptionName: 'AWS',
+    amount: 25.8,
+    currency: 'USD',
+    paymentDate: '2024-11-01',
+    paymentMethod: 'クレジットカード',
+    exchangeRate: 148.2,
+  },
+  {
+    id: 3,
+    subscriptionId: 'spotify-3',
+    subscriptionName: 'Spotify',
+    amount: 980,
+    currency: 'JPY',
+    paymentDate: '2024-09-20',
+    paymentMethod: 'PayPay',
+    exchangeRate: null,
+  },
+];
+
+type SortableColumn = 'paymentDate' | 'subscriptionName' | 'paymentMethod' | 'amount' | 'exchangeRate';
+
 const PaymentHistoryPage = () => {
-  const [sortDialogOpen, setSortDialogOpen] = useState(false);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState('2024');
   const [selectedMonth, setSelectedMonth] = useState('11');
-  const [showInJPY, setShowInJPY] = useState(true);
+  const [sortConfig, setSortConfig] = useState<{
+    key: SortableColumn;
+    direction: 'asc' | 'desc';
+  } | null>(null);
 
   const navigate = useNavigate();
-
-  const handleSort = (sortOptions: { field: string; order: string }) => {
-    console.log('Sort by:', sortOptions);
-    // TODO: ソート処理の実装
-  };
 
   const handleFilter = (filterOptions: PayHistoryFilterOptions | SubscFilterOptions) => {
     console.log('Filter by:', filterOptions);
     // TODO: フィルター処理の実装
   };
 
-  // サンプルデータ
-  const paymentHistory = [
-    {
-      id: 1,
-      subscriptionId: 'netflix-1',
-      subscriptionName: 'Netflix',
-      amount: 1980,
-      currency: 'JPY',
-      paymentDate: '2024-12-15',
-      paymentMethod: 'クレジットカード',
-      exchangeRate: null,
-    },
-    {
-      id: 2,
-      subscriptionId: 'aws-2',
-      subscriptionName: 'AWS',
-      amount: 25.8,
-      currency: 'USD',
-      paymentDate: '2024-11-01',
-      paymentMethod: 'クレジットカード',
-      exchangeRate: 148.2,
-    },
-    {
-      id: 3,
-      subscriptionId: 'spotify-3',
-      subscriptionName: 'Spotify',
-      amount: 980,
-      currency: 'JPY',
-      paymentDate: '2024-09-20',
-      paymentMethod: 'PayPay',
-      exchangeRate: null,
-    },
-  ];
-
-  // 金額表示を計算する関数
-  const getDisplayAmount = (payment: (typeof paymentHistory)[0]) => {
-    if (payment.currency === 'JPY') {
-      return `¥${payment.amount.toLocaleString()}`;
+  const handleSort = (key: SortableColumn) => {
+    if (sortConfig && sortConfig.key === key) {
+      if (sortConfig.direction === 'desc') {
+        setSortConfig({ key, direction: 'asc' });
+      } else {
+        setSortConfig(null);
+      }
+    } else {
+      setSortConfig({ key, direction: 'desc' });
     }
-    if (showInJPY && payment.exchangeRate) {
-      return `¥${Math.round(payment.amount * payment.exchangeRate).toLocaleString()}`;
-    }
-    return `$${payment.amount}`;
   };
+
+  const sortedPaymentHistory = useMemo(() => {
+    const sortableItems = [...paymentHistory];
+    if (sortConfig) {
+      sortableItems.sort((a, b) => {
+        const key = sortConfig.key;
+        let aValue: string | number | null;
+        let bValue: string | number | null;
+
+        if (key === 'amount') {
+          aValue =
+            a.currency !== 'JPY' && a.exchangeRate ? Math.round(a.amount * a.exchangeRate) : a.amount;
+          bValue =
+            b.currency !== 'JPY' && b.exchangeRate ? Math.round(b.amount * b.exchangeRate) : b.amount;
+        } else {
+          aValue = a[key];
+          bValue = b[key];
+        }
+
+        if (aValue === null || bValue === null) {
+          if (aValue === bValue) return 0;
+          return aValue === null ? 1 : -1;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [sortConfig]);
 
   // 状態の追加
   const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | undefined>();
@@ -196,21 +231,6 @@ const PaymentHistoryPage = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setShowInJPY(!showInJPY)}
-              className={!showInJPY ? 'bg-gray-100' : ''}
-            >
-              <CurrencyExchangeRoundedIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSortDialogOpen(true)}
-            >
-              <SortRoundedIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
               onClick={() => setFilterDialogOpen(true)}
             >
               <FilterListRoundedIcon />
@@ -223,25 +243,123 @@ const PaymentHistoryPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>支払日</TableHead>
-                <TableHead>サービス名</TableHead>
-                <TableHead className="hidden md:table-cell">支払い方法</TableHead>
-                <TableHead className="text-right">金額</TableHead>
+                <TableHead
+                  onClick={() => handleSort('paymentDate')}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    支払日
+                    {sortConfig?.key === 'paymentDate' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUpwardRoundedIcon className="ml-2 h-4 w-4" />
+                      ) : (
+                        <ArrowDownwardRoundedIcon className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <SwapVertIcon className="ml-2 h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead
+                  onClick={() => handleSort('subscriptionName')}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    サービス名
+                    {sortConfig?.key === 'subscriptionName' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUpwardRoundedIcon className="ml-2 h-4 w-4" />
+                      ) : (
+                        <ArrowDownwardRoundedIcon className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <SwapVertIcon className="ml-2 h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead
+                  onClick={() => handleSort('paymentMethod')}
+                  className="hidden cursor-pointer md:table-cell"
+                >
+                  <div className="flex items-center">
+                    支払い方法
+                    {sortConfig?.key === 'paymentMethod' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUpwardRoundedIcon className="ml-2 h-4 w-4" />
+                      ) : (
+                        <ArrowDownwardRoundedIcon className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <SwapVertIcon className="ml-2 h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead
+                  onClick={() => handleSort('amount')}
+                  className="cursor-pointer text-right"
+                >
+                  <div className="flex items-center justify-end">
+                    金額 (JPY)
+                    {sortConfig?.key === 'amount' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUpwardRoundedIcon className="ml-2 h-4 w-4" />
+                      ) : (
+                        <ArrowDownwardRoundedIcon className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <SwapVertIcon className="ml-2 h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead className="text-right">元の金額</TableHead>
+                <TableHead
+                  onClick={() => handleSort('exchangeRate')}
+                  className="cursor-pointer text-right"
+                >
+                  <div className="flex items-center justify-end">
+                    為替レート
+                    {sortConfig?.key === 'exchangeRate' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUpwardRoundedIcon className="ml-2 h-4 w-4" />
+                      ) : (
+                        <ArrowDownwardRoundedIcon className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <SwapVertIcon className="ml-2 h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paymentHistory.map((payment) => (
-                <TableRow
-                  key={payment.id}
-                  className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => handleRowClick(payment)}
-                >
-                  <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
-                  <TableCell>{payment.subscriptionName}</TableCell>
-                  <TableCell className="hidden md:table-cell">{payment.paymentMethod}</TableCell>
-                  <TableCell className="text-right">{getDisplayAmount(payment)}</TableCell>
-                </TableRow>
-              ))}
+              {sortedPaymentHistory.map((payment) => {
+                const jpyAmount =
+                  payment.currency === 'JPY' || !payment.exchangeRate
+                    ? payment.amount
+                    : Math.round(payment.amount * payment.exchangeRate);
+
+                const originalAmountDisplay =
+                  payment.currency === 'JPY'
+                    ? ''
+                    : payment.currency === 'USD'
+                      ? `$${payment.amount.toFixed(2)}`
+                      : `${payment.currency} ${payment.amount}`;
+
+                return (
+                  <TableRow
+                    key={payment.id}
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleRowClick(payment)}
+                  >
+                    <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{payment.subscriptionName}</TableCell>
+                    <TableCell className="hidden md:table-cell">{payment.paymentMethod}</TableCell>
+                    <TableCell className="text-right">{`¥${jpyAmount.toLocaleString()}`}</TableCell>
+                    <TableCell className="text-right">{originalAmountDisplay}</TableCell>
+                    <TableCell className="text-right">{payment.exchangeRate}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Card>
@@ -278,11 +396,6 @@ const PaymentHistoryPage = () => {
       </div>
 
       {/* ダイアログ */}
-      <SortDialog
-        open={sortDialogOpen}
-        onOpenChange={setSortDialogOpen}
-        onSort={handleSort}
-      />
       <FilterDialog
         open={filterDialogOpen}
         onOpenChange={setFilterDialogOpen}
