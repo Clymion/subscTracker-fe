@@ -24,6 +24,7 @@
 			]
         }
     },
+    "postCreateCommand": "npx --yes cc-sdd@latest --gemini --lang ja",
 
 	"remoteUser": "node"
 }
