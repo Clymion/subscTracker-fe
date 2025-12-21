@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
@@ -9,6 +9,7 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
+import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 
 import { SideNavigation } from '@/components/layout/SideNavigation';
@@ -29,67 +30,42 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
+import { PaymentMethod, PaymentMethodLabels } from '@/constants/subscription';
+import PaymentRecordDrawer, {
+  payHistoryFormSchema,
+} from '@/features/history/components/PaymentRecordDrawer';
+import { Payment, PaymentHistory } from '@/features/history/types';
 import FilterDialog, {
   PayHistoryFilterOptions,
   SubscFilterOptions,
-} from '../../subscriptions/components/FilterDialog';
-import PaymentRecordDrawer, {
-  PaymentRecord,
-  payHistoryFormSchema,
-} from '../components/PaymentRecordDrawer';
+} from '@/features/subscriptions/components/FilterDialog';
+import { api } from '@/lib/api-client';
 
-// サンプルデータ
-const paymentHistory = [
-  {
-    id: 1,
-    subscriptionId: 'netflix-1',
-    subscriptionName: 'Netflix',
-    amount: 1980,
-    currency: 'JPY',
-    paymentDate: '2024-12-15',
-    paymentMethod: 'クレジットカード',
-    exchangeRate: null,
-  },
-  {
-    id: 2,
-    subscriptionId: 'aws-2',
-    subscriptionName: 'AWS',
-    amount: 25.8,
-    currency: 'USD',
-    paymentDate: '2024-11-01',
-    paymentMethod: 'クレジットカード',
-    exchangeRate: 148.2,
-  },
-  {
-    id: 3,
-    subscriptionId: 'spotify-3',
-    subscriptionName: 'Spotify',
-    amount: 980,
-    currency: 'JPY',
-    paymentDate: '2024-09-20',
-    paymentMethod: 'PayPay',
-    exchangeRate: null,
-  },
-];
-
-type SortableColumn = 'paymentDate' | 'subscriptionName' | 'paymentMethod' | 'amount' | 'exchangeRate';
+type SortableColumn =
+  | 'paymentDate'
+  | 'subscriptionName'
+  | 'paymentMethod'
+  | 'amount'
+  | 'exchangeRate';
 
 const PaymentHistoryPage = () => {
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedYear, setSelectedYear] = useState('2024');
-  const [selectedMonth, setSelectedMonth] = useState('11');
+  // フィルター用の状態
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
   const [sortConfig, setSortConfig] = useState<{
     key: SortableColumn;
     direction: 'asc' | 'desc';
   } | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const navigate = useNavigate();
 
+  // TODO: フィルター周りのUX改善 (他アプリなどを参考に)
   const handleFilter = (filterOptions: PayHistoryFilterOptions | SubscFilterOptions) => {
     console.log('Filter by:', filterOptions);
-    // TODO: フィルター処理の実装
+    // TODO: ダイアログ内のフィルター処理の実装
   };
 
   const handleSort = (key: SortableColumn) => {
@@ -104,25 +80,53 @@ const PaymentHistoryPage = () => {
     }
   };
 
+  // 支払い履歴の取得
+  const { data: paymentHistory = [], isLoading } = useQuery<Payment[]>({
+    queryKey: ['paymentHistory', selectedYear, selectedMonth],
+    queryFn: async () => {
+      const response = await api.get<PaymentHistory>(
+        `/payments?year=${selectedYear}&month=${selectedMonth}`,
+      );
+      return response.data.payments;
+    },
+  });
+
+  // 支払い履歴のフィルタリング処理
+  // TODO: フィルターした結果がない場合の表示(TSXの方へ)
+  const filteredPaymentHistory = useMemo(() => {
+    return paymentHistory.filter(payment => {
+      const paymentDate = new Date(payment.paymentDate);
+      return (
+        paymentDate.getFullYear() === Number(selectedYear) &&
+        paymentDate.getMonth() + 1 === Number(selectedMonth)
+      );
+    });
+  }, [paymentHistory, selectedYear, selectedMonth]);
+
+  // ソートされた支払い履歴
   const sortedPaymentHistory = useMemo(() => {
-    const sortableItems = [...paymentHistory];
+    const sortableItems = [...filteredPaymentHistory];
     if (sortConfig) {
       sortableItems.sort((a, b) => {
         const key = sortConfig.key;
-        let aValue: string | number | null;
-        let bValue: string | number | null;
+        let aValue: string | number | undefined;
+        let bValue: string | number | undefined;
 
         if (key === 'amount') {
           aValue =
-            a.currency !== 'JPY' && a.exchangeRate ? Math.round(a.amount * a.exchangeRate) : a.amount;
+            a.currency !== 'JPY' && a.exchangeRate
+              ? Math.round(a.amount * a.exchangeRate)
+              : a.amount;
           bValue =
-            b.currency !== 'JPY' && b.exchangeRate ? Math.round(b.amount * b.exchangeRate) : b.amount;
+            b.currency !== 'JPY' && b.exchangeRate
+              ? Math.round(b.amount * b.exchangeRate)
+              : b.amount;
         } else {
           aValue = a[key];
           bValue = b[key];
         }
 
-        if (aValue === null || bValue === null) {
+        if (aValue === undefined || bValue === undefined) {
           if (aValue === bValue) return 0;
           return aValue === null ? 1 : -1;
         }
@@ -137,10 +141,10 @@ const PaymentHistoryPage = () => {
       });
     }
     return sortableItems;
-  }, [sortConfig]);
+  }, [filteredPaymentHistory, sortConfig]);
 
   // 状態の追加
-  const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | undefined>();
+  const [selectedPayment, setSelectedPayment] = useState<Payment | undefined>();
 
   // 支払い記録の処理ハンドラ
   const handlePaymentSubmit = (data: z.infer<typeof payHistoryFormSchema>) => {
@@ -163,10 +167,61 @@ const PaymentHistoryPage = () => {
   };
 
   // テーブル行のクリックハンドラ
-  const handleRowClick = (payment: PaymentRecord) => {
+  const handleRowClick = (payment: Payment) => {
     setSelectedPayment(payment);
     setDrawerOpen(true);
   };
+
+  // 支払い方法の表示用関数
+  const displayPaymentMethod = (method: PaymentMethod | undefined) => {
+    if (!method) return '不明';
+    return PaymentMethodLabels[method];
+  };
+
+  // フロントで既に取得した支払い一覧から選択可能な年/月を抽出する（API がない場合のフォールバック）
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    paymentHistory.forEach(p => years.add(new Date(p.paymentDate).getFullYear()));
+    return Array.from(years).sort((a,b)=>b-a); // 新しい順
+  }, [paymentHistory]);
+
+  const availableMonthsForYear = (year: number) => {
+    const months = new Set<number>();
+    paymentHistory.forEach(p => {
+      const d = new Date(p.paymentDate);
+      if (d.getFullYear() === year) months.add(d.getMonth());
+    });
+    return Array.from(months).sort((a,b)=>a-b);
+  };
+
+  // Set the selected year and month to the latest payment record upon initial data load.
+  // TODO: 要リファクタリング (ReactのAPIなど設計)
+  useEffect(() => {
+    if (isInitialLoad && paymentHistory.length > 0) {
+      const latestPayment = paymentHistory.reduce((latest, current) => {
+        return new Date(latest.paymentDate) > new Date(current.paymentDate) ? latest : current;
+      });
+
+      if (latestPayment) {
+        const latestYear = new Date(latestPayment.paymentDate).getFullYear().toString();
+        const latestMonth = (new Date(latestPayment.paymentDate).getMonth() + 1).toString();
+        setSelectedYear(latestYear);
+        setSelectedMonth(latestMonth);
+      }
+      setIsInitialLoad(false);
+    }
+  }, [paymentHistory, isInitialLoad]);
+
+  // 合計金額の計算
+  const totalAmount = useMemo(() => {
+    return sortedPaymentHistory.reduce((sum, payment) => {
+      const jpyAmount =
+        payment.currency === 'JPY' || !payment.exchangeRate
+          ? payment.amount
+          : Math.round(payment.amount * payment.exchangeRate);
+      return sum + jpyAmount;
+    }, 0);
+  }, [sortedPaymentHistory]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -196,8 +251,14 @@ const PaymentHistoryPage = () => {
                       <SelectValue placeholder="年" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="2024">2024年</SelectItem>
-                      <SelectItem value="2023">2023年</SelectItem>
+                      {availableYears.map((year) => (
+                        <SelectItem
+                          key={year}
+                          value={year.toString()}
+                        >
+                          {year}年
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Select
@@ -208,10 +269,11 @@ const PaymentHistoryPage = () => {
                       <SelectValue placeholder="月" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.from({ length: 12 }, (_, i) => (
+                      {availableMonthsForYear(Number(selectedYear)).map((i) => (
                         <SelectItem
                           key={i + 1}
                           value={(i + 1).toString()}
+
                         >
                           {i + 1}月
                         </SelectItem>
@@ -221,7 +283,7 @@ const PaymentHistoryPage = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500">今月の合計支払額</p>
-                  <p className="text-xl font-bold">¥5,783</p>
+                  <p className="text-xl font-bold">¥{totalAmount.toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
@@ -342,8 +404,8 @@ const PaymentHistoryPage = () => {
                   payment.currency === 'JPY'
                     ? ''
                     : payment.currency === 'USD'
-                      ? `$${payment.amount.toFixed(2)}`
-                      : `${payment.currency} ${payment.amount}`;
+                    ? `$${payment.amount.toFixed(2)}`
+                    : `${payment.currency} ${payment.amount}`;
 
                 return (
                   <TableRow
@@ -353,7 +415,7 @@ const PaymentHistoryPage = () => {
                   >
                     <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
                     <TableCell>{payment.subscriptionName}</TableCell>
-                    <TableCell className="hidden md:table-cell">{payment.paymentMethod}</TableCell>
+                    <TableCell className="hidden md:table-cell">{displayPaymentMethod(payment.paymentMethod)}</TableCell>
                     <TableCell className="text-right">{`¥${jpyAmount.toLocaleString()}`}</TableCell>
                     <TableCell className="text-right">{originalAmountDisplay}</TableCell>
                     <TableCell className="text-right">{payment.exchangeRate}</TableCell>

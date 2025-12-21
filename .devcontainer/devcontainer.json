@@ -20,7 +20,8 @@
 				"GitHub.vscode-pull-request-github",
 				"saoudrizwan.claude-dev",
 				"humao.rest-client",
-				"Google.gemini-cli-vscode-ide-companion"
+				"Google.gemini-cli-vscode-ide-companion",
+				"google.geminicodeassist"
 			]
         }
     },
