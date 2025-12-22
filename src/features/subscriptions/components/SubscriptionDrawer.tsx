@@ -40,7 +40,7 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
     price: 0,
     currency: 'JPY',
     frequency: 'monthly',
-    initialPaymentDate: new Date().toISOString().split('T')[0], // 今日の日付
+    initialPaymentDate: format(new Date(), 'yyyy-MM-dd'), // 今日の日付
     paymentMethod: 'credit_card',
     labels: [],
     url: '',
@@ -200,7 +200,9 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
                   >
                     <CalendarMonthRoundedIcon />
                     {formData.initialPaymentDate ? (
-                      format(formData.initialPaymentDate, 'PPP', { locale: ja })
+                      format(new Date(formData.initialPaymentDate.replace(/-/g, '/')), 'PPP', {
+                        locale: ja,
+                      })
                     ) : (
                       <span>日付を選択</span>
                     )}
@@ -209,15 +211,20 @@ const SubscriptionDrawer = ({ open, onOpenChange }: SubscriptionDrawerProps) => 
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
+                    month={
+                      formData.initialPaymentDate
+                        ? new Date(formData.initialPaymentDate.replace(/-/g, '/'))
+                        : new Date()
+                    }
                     selected={
                       formData.initialPaymentDate
-                        ? new Date(formData.initialPaymentDate)
+                        ? new Date(formData.initialPaymentDate.replace(/-/g, '/'))
                         : undefined
                     }
                     onSelect={(date) =>
                       setFormData((prev) => ({
                         ...prev,
-                        initialPaymentDate: date ? date.toISOString().split('T')[0] : null,
+                        initialPaymentDate: date ? format(date, 'yyyy-MM-dd') : null,
                       }))
                     }
                   />

@@ -20,7 +20,7 @@ export const SideNavigation = () => {
   return (
     <div className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 bg-white border-r p-4">
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-gray-900">SubsTracker</h1>
+        <h1 className="text-xl font-bold text-gray-900">SubscTracker</h1>
       </div>
       <nav className="flex-grow space-y-2">
         <Button

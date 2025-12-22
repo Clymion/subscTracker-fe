@@ -75,7 +75,7 @@ const RegisterPage = () => {
         position="bottom-right"
       />
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-gray-900">SubsTracker</h1>
+        <h1 className="text-3xl font-bold text-gray-900">SubscTracker</h1>
         <p className="text-gray-600">サブスクリプション管理アプリ</p>
       </div>
 

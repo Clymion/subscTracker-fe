@@ -405,16 +405,21 @@ const SubscriptionDetail = () => {
                         >
                           <TodayRoundedIcon />
                           {formData.initialPaymentDate
-                            ? format(formData.initialPaymentDate, 'PPP', { locale: ja })
+                            ? format(new Date(formData.initialPaymentDate.replace(/-/g, '/')), 'PPP', { locale: ja })
                             : '未設定'}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
                         <Calendar
                           mode="single"
+                          month={
+                            formData.initialPaymentDate
+                              ? new Date(formData.initialPaymentDate.replace(/-/g, '/'))
+                              : new Date()
+                          }
                           selected={
                             formData.initialPaymentDate
-                              ? new Date(formData.initialPaymentDate)
+                              ? new Date(formData.initialPaymentDate.replace(/-/g, '/'))
                               : undefined
                           }
                           onSelect={(date) =>

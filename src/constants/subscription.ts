@@ -29,3 +29,20 @@ export const SubscriptionFreqDisplay = {
   MONTH: 'month',
   YEAR: 'year',
 } as const;
+
+/** @var 支払い方法の種類 */
+export enum PaymentMethod {
+  CREDIT_CARD = 'credit_card',
+  BANK_TRANSFER = 'bank_transfer',
+  CONVENIENCE_STORE = 'convenience_store',
+  OTHER = 'other',
+};
+
+/** @var 支払い方法の対応文言 */
+export const PaymentMethodLabels: Record<PaymentMethod, string> = {
+  [PaymentMethod.CREDIT_CARD]: 'クレジットカード',
+  [PaymentMethod.BANK_TRANSFER]: '銀行振込',
+  [PaymentMethod.CONVENIENCE_STORE]: 'コンビニ決済',
+  [PaymentMethod.OTHER]: 'その他',
+} as const;
+

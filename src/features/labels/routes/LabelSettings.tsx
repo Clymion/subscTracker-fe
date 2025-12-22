@@ -50,6 +50,7 @@ const LabelSettings = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState<LabelType | null>(null);
+  const [formData, setFormData] = useState({ name: '', color: colorPalette[0] });
   const queryClient = useQueryClient();
   /**
    * @var labels - ラベルの一覧を取得するためのクエリフック
@@ -183,7 +184,12 @@ const LabelSettings = () => {
               <Tag className="w-6 h-6" />
               <h2 className="text-2xl font-bold text-gray-900">ラベル管理</h2>
             </div>
-            <Button onClick={() => setShowAddDialog(true)}>
+            <Button
+              onClick={() => {
+                setFormData({ name: '', color: colorPalette[0] });
+                setShowAddDialog(true);
+              }}
+            >
               <Plus className="w-4 h-4 mr-2" />
               新規作成
             </Button>
@@ -224,6 +230,7 @@ const LabelSettings = () => {
                         variant="ghost"
                         size="icon"
                         onClick={() => {
+                          setFormData({ name: label.name, color: label.color || colorPalette[0] });
                           setSelectedLabel(label);
                           setShowEditDialog(true);
                         }}
@@ -305,7 +312,8 @@ const LabelSettings = () => {
               <Input
                 id="labelName"
                 placeholder="例: エンタメ、ビジネス"
-                defaultValue={selectedLabel?.name}
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -315,12 +323,10 @@ const LabelSettings = () => {
                   <button
                     key={color}
                     className={`w-8 h-8 rounded-full ring-2 ring-offset-2 ${
-                      selectedLabel?.color === color ? 'ring-black' : 'ring-transparent'
+                      formData.color === color ? 'ring-black' : 'ring-transparent'
                     }`}
                     style={{ backgroundColor: color }}
-                    onClick={() =>
-                      setSelectedLabel(selectedLabel ? { ...selectedLabel, color } : null)
-                    }
+                    onClick={() => setFormData({ ...formData, color })}
                   />
                 ))}
               </div>
@@ -338,10 +344,6 @@ const LabelSettings = () => {
             </Button>
             <Button
               onClick={() => {
-                const formData = {
-                  name: (document.getElementById('labelName') as HTMLInputElement).value,
-                  color: selectedLabel?.color || colorPalette[0],
-                };
                 if (showEditDialog) {
                   handleEditLabel(formData);
                 } else {

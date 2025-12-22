@@ -27,19 +27,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Payment } from '@/features/history/types';
 import { cn } from '@/lib/utils';
-
-// 型定義
-export type PaymentRecord = {
-  id: number;
-  subscriptionId: string;
-  subscriptionName: string;
-  amount: number;
-  currency: string;
-  paymentDate: string;
-  paymentMethod: string;
-  exchangeRate: number | null;
-};
 
 // Validation Schema
 export const payHistoryFormSchema = z.object({
@@ -67,7 +56,7 @@ const paymentMethods = [
 interface PaymentRecordDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  paymentRecord?: PaymentRecord;
+  paymentRecord?: Payment;
   mode?: 'create' | 'view' | 'edit';
   onSubmit: (data: z.infer<typeof payHistoryFormSchema>) => void;
   onDelete?: () => void;
