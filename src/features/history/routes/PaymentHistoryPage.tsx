@@ -81,7 +81,7 @@ const PaymentHistoryPage = () => {
   };
 
   // 支払い履歴の取得
-  const { data: paymentHistory = [], isLoading } = useQuery<Payment[]>({
+  const { data: paymentHistory = [] } = useQuery<Payment[]>({
     queryKey: ['paymentHistory', selectedYear, selectedMonth],
     queryFn: async () => {
       const response = await api.get<PaymentHistory>(
