@@ -103,6 +103,25 @@ const PaymentHistoryPage = () => {
     });
   }, [paymentHistory, selectedYear, selectedMonth]);
 
+  // TODO: ユーザー設定から取得する
+  const baseCurrency = 'JPY';
+
+  /**
+   * `baseCurrency`に変換
+   * 
+   * @param amount 元の金額
+   * @param currency 元の金額の通貨コード
+   * @param rate 為替レート
+   * @returns 
+   */
+  const convertToBaseCurrency = (amount: number, currency: string, rate?: number): number => {
+    if (currency === baseCurrency || !rate || rate === 0) {
+      return amount;
+    }
+    // レートは基準通貨から外貨への変換レート (例: JPY→USD) と想定
+    return Math.round(amount * rate);
+  };
+
   // ソートされた支払い履歴
   const sortedPaymentHistory = useMemo(() => {
     const sortableItems = [...filteredPaymentHistory];
@@ -113,14 +132,8 @@ const PaymentHistoryPage = () => {
         let bValue: string | number | undefined;
 
         if (key === 'amount') {
-          aValue =
-            a.currency !== 'JPY' && a.exchangeRate
-              ? Math.round(a.amount * a.exchangeRate)
-              : a.amount;
-          bValue =
-            b.currency !== 'JPY' && b.exchangeRate
-              ? Math.round(b.amount * b.exchangeRate)
-              : b.amount;
+          aValue = convertToBaseCurrency(a.amount, a.currency, a.exchangeRate);
+          bValue = convertToBaseCurrency(b.amount, b.currency, b.exchangeRate);
         } else {
           aValue = a[key];
           bValue = b[key];
@@ -141,7 +154,7 @@ const PaymentHistoryPage = () => {
       });
     }
     return sortableItems;
-  }, [filteredPaymentHistory, sortConfig]);
+  }, [filteredPaymentHistory, sortConfig, baseCurrency]);
 
   // 状態の追加
   const [selectedPayment, setSelectedPayment] = useState<Payment | undefined>();
@@ -215,13 +228,14 @@ const PaymentHistoryPage = () => {
   // 合計金額の計算
   const totalAmount = useMemo(() => {
     return sortedPaymentHistory.reduce((sum, payment) => {
-      const jpyAmount =
-        payment.currency === 'JPY' || !payment.exchangeRate
-          ? payment.amount
-          : Math.round(payment.amount * payment.exchangeRate);
-      return sum + jpyAmount;
+      const amountInBase = convertToBaseCurrency(
+        payment.amount,
+        payment.currency,
+        payment.exchangeRate,
+      );
+      return sum + amountInBase;
     }, 0);
-  }, [sortedPaymentHistory]);
+  }, [sortedPaymentHistory, baseCurrency]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -395,17 +409,18 @@ const PaymentHistoryPage = () => {
             </TableHeader>
             <TableBody>
               {sortedPaymentHistory.map((payment) => {
-                const jpyAmount =
-                  payment.currency === 'JPY' || !payment.exchangeRate
-                    ? payment.amount
-                    : Math.round(payment.amount * payment.exchangeRate);
+                const amountInBase = convertToBaseCurrency(
+                  payment.amount,
+                  payment.currency,
+                  payment.exchangeRate,
+                );
 
                 const originalAmountDisplay =
-                  payment.currency === 'JPY'
+                  payment.currency === baseCurrency
                     ? ''
                     : payment.currency === 'USD'
-                    ? `$${payment.amount.toFixed(2)}`
-                    : `${payment.currency} ${payment.amount}`;
+                      ? `$${payment.amount.toFixed(2)}`
+                      : `${payment.currency} ${payment.amount}`;
 
                 return (
                   <TableRow
@@ -415,8 +430,10 @@ const PaymentHistoryPage = () => {
                   >
                     <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
                     <TableCell>{payment.subscriptionName}</TableCell>
-                    <TableCell className="hidden md:table-cell">{displayPaymentMethod(payment.paymentMethod)}</TableCell>
-                    <TableCell className="text-right">{`¥${jpyAmount.toLocaleString()}`}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {displayPaymentMethod(payment.paymentMethod)}
+                    </TableCell>
+                    <TableCell className="text-right">{`¥${amountInBase.toLocaleString()}`}</TableCell>
                     <TableCell className="text-right">{originalAmountDisplay}</TableCell>
                     <TableCell className="text-right">{payment.exchangeRate}</TableCell>
                   </TableRow>
