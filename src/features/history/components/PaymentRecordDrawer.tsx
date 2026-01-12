@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Payment } from '@/features/history/types';
+import { SubscriptionSummary } from '@/features/subscriptions/types';
 import { cn } from '@/lib/utils';
 
 // Validation Schema
@@ -39,13 +40,6 @@ export const payHistoryFormSchema = z.object({
   paymentMethod: z.string().min(1, { message: '支払い方法を選択してください' }),
   amount: z.string().min(1, { message: '金額を入力してください' }),
 });
-
-// サンプルデータ（実際はAPIから取得）
-const subscriptions = [
-  { id: '1', name: 'Netflix', currency: 'JPY', amount: 1980 },
-  { id: '2', name: 'AWS', currency: 'USD', amount: 25.8 },
-  { id: '3', name: 'Spotify', currency: 'JPY', amount: 980 },
-];
 
 const paymentMethods = [
   { id: 'credit_card', name: 'クレジットカード' },
@@ -60,6 +54,7 @@ interface PaymentRecordDrawerProps {
   mode?: 'create' | 'view' | 'edit';
   onSubmit: (data: z.infer<typeof payHistoryFormSchema>) => void;
   onDelete?: () => void;
+  subscriptions: SubscriptionSummary[];
 }
 
 const PaymentRecordDrawer = ({
@@ -69,10 +64,10 @@ const PaymentRecordDrawer = ({
   mode = 'create',
   onSubmit,
   onDelete,
+  subscriptions,
 }: PaymentRecordDrawerProps) => {
   const [isEditing, setIsEditing] = useState(mode === 'edit');
   const [currency, setCurrency] = useState('JPY');
-  const [amount, setAmount] = useState('');
 
   const currencies = [
     { value: 'JPY', label: '¥ (JPY)', symbol: '¥' },
@@ -83,7 +78,7 @@ const PaymentRecordDrawer = ({
   // フォームの初期値を設定
   const defaultValues = paymentRecord
     ? {
-        subscriptionId: paymentRecord.subscriptionId,
+        subscriptionId: String(paymentRecord.subscriptionId),
         paymentDate: new Date(paymentRecord.paymentDate),
         paymentMethod: paymentRecord.paymentMethod,
         amount: paymentRecord.amount.toString(),
@@ -100,11 +95,14 @@ const PaymentRecordDrawer = ({
     defaultValues,
   });
 
+  // フォームの金額を監視して換算表示に使用 (useStateの代わり)
+  const watchedAmount = useWatch({ control: form.control, name: 'amount' });
+
   // paymentRecordが変更されたときにフォームの値をリセット
   useEffect(() => {
     if (paymentRecord) {
       form.reset({
-        subscriptionId: paymentRecord.subscriptionId,
+        subscriptionId: String(paymentRecord.subscriptionId),
         paymentDate: new Date(paymentRecord.paymentDate),
         paymentMethod: paymentRecord.paymentMethod,
         amount: paymentRecord.amount.toString(),
@@ -123,11 +121,12 @@ const PaymentRecordDrawer = ({
   // const selectedSubscription = subscriptions.find((s) => s.id === form.watch('subscriptionId'));
 
   // サブスクリプション変更時の処理
-  const handleSubscriptionChange = (value: string) => {
-    form.setValue('subscriptionId', value);
-    const subscription = subscriptions.find((s) => s.id === value);
+  const handleSubscriptionChange = (value: string, onChange: (value: string) => void) => {
+    onChange(value); // RHFの状態を更新
+
+    const subscription = subscriptions.find((s) => String(s.id) === value);
     if (subscription) {
-      form.setValue('amount', subscription.amount.toString());
+      form.setValue('amount', subscription.price.toString());
     }
   };
 
@@ -265,8 +264,8 @@ const PaymentRecordDrawer = ({
           <FormItem>
             <FormLabel>サブスクリプション *</FormLabel>
             <Select
-              onValueChange={handleSubscriptionChange}
-              defaultValue={field.value}
+              onValueChange={(val) => handleSubscriptionChange(val, field.onChange)}
+              value={field.value}
               disabled={!isEditing && mode !== 'create'}
             >
               <FormControl>
@@ -278,7 +277,7 @@ const PaymentRecordDrawer = ({
                 {subscriptions.map((sub) => (
                   <SelectItem
                     key={sub.id}
-                    value={sub.id}
+                    value={String(sub.id)}
                   >
                     {sub.name}
                   </SelectItem>
@@ -311,7 +310,6 @@ const PaymentRecordDrawer = ({
                         type="number"
                         {...field}
                         className="block w-full pl-7 pr-12 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        onBlur={(e) => setAmount(e.target.value)}
                         step={1}
                         disabled={!isEditing && mode !== 'create'}
                       />
@@ -343,7 +341,7 @@ const PaymentRecordDrawer = ({
                     <span className="ml-2">
                       ¥{' '}
                       {(
-                        Number(amount || 0) * (currency === 'USD' ? 148.5 : 160.2)
+                        Number(watchedAmount || 0) * (currency === 'USD' ? 148.5 : 160.2)
                       ).toLocaleString()}
                     </span>
                   </div>

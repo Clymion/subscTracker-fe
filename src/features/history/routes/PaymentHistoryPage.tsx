@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
@@ -39,6 +39,7 @@ import FilterDialog, {
   PayHistoryFilterOptions,
   SubscFilterOptions,
 } from '@/features/subscriptions/components/FilterDialog';
+import { SubscriptionSummary, SubscriptionSummaryResponse } from '@/features/subscriptions/types';
 import { api } from '@/lib/api-client';
 
 type SortableColumn =
@@ -102,6 +103,16 @@ const PaymentHistoryPage = () => {
       );
     });
   }, [paymentHistory, selectedYear, selectedMonth]);
+
+  // サブスクリプション一覧を取得
+  const { data: subscriptions = [] } = useQuery<SubscriptionSummary[]>({
+      queryKey: ['subscriptions'],
+      queryFn: async () => {
+        const response = await api.get<SubscriptionSummaryResponse>('/subscriptions');
+        return response.data.subscriptions;
+      },
+      refetchOnWindowFocus: false,
+    });
 
   // TODO: ユーザー設定から取得する
   const baseCurrency = 'JPY';
@@ -487,6 +498,7 @@ const PaymentHistoryPage = () => {
         mode={selectedPayment ? 'view' : 'create'}
         onSubmit={handlePaymentSubmit}
         onDelete={selectedPayment ? handlePaymentDelete : undefined}
+        subscriptions={subscriptions}
       />
     </div>
   );
