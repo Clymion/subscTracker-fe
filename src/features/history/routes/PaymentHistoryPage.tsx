@@ -9,7 +9,9 @@ import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { z } from 'zod';
 
 import { SideNavigation } from '@/components/layout/SideNavigation';
@@ -34,6 +36,7 @@ import { PaymentMethod, PaymentMethodLabels } from '@/constants/subscription';
 import PaymentRecordDrawer, {
   payHistoryFormSchema,
 } from '@/features/history/components/PaymentRecordDrawer';
+import { paymentCreateSchema, paymentUpdateSchema } from '@/features/history/schemas';
 import { Payment, PaymentHistory } from '@/features/history/types';
 import FilterDialog, {
   PayHistoryFilterOptions,
@@ -41,6 +44,7 @@ import FilterDialog, {
 } from '@/features/subscriptions/components/FilterDialog';
 import { SubscriptionSummary, SubscriptionSummaryResponse } from '@/features/subscriptions/types';
 import { api } from '@/lib/api-client';
+import { CustomApiError } from '@/types/api';
 
 type SortableColumn =
   | 'paymentDate'
@@ -62,6 +66,7 @@ const PaymentHistoryPage = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // TODO: フィルター周りのUX改善 (他アプリなどを参考に)
   const handleFilter = (filterOptions: PayHistoryFilterOptions | SubscFilterOptions) => {
@@ -95,7 +100,7 @@ const PaymentHistoryPage = () => {
   // 支払い履歴のフィルタリング処理
   // TODO: フィルターした結果がない場合の表示(TSXの方へ)
   const filteredPaymentHistory = useMemo(() => {
-    return paymentHistory.filter(payment => {
+    return paymentHistory.filter((payment) => {
       const paymentDate = new Date(payment.paymentDate);
       return (
         paymentDate.getFullYear() === Number(selectedYear) &&
@@ -106,24 +111,24 @@ const PaymentHistoryPage = () => {
 
   // サブスクリプション一覧を取得
   const { data: subscriptions = [] } = useQuery<SubscriptionSummary[]>({
-      queryKey: ['subscriptions'],
-      queryFn: async () => {
-        const response = await api.get<SubscriptionSummaryResponse>('/subscriptions');
-        return response.data.subscriptions;
-      },
-      refetchOnWindowFocus: false,
-    });
+    queryKey: ['subscriptions'],
+    queryFn: async () => {
+      const response = await api.get<SubscriptionSummaryResponse>('/subscriptions');
+      return response.data.subscriptions;
+    },
+    refetchOnWindowFocus: false,
+  });
 
   // TODO: ユーザー設定から取得する
   const baseCurrency = 'JPY';
 
   /**
    * `baseCurrency`に変換
-   * 
+   *
    * @param amount 元の金額
    * @param currency 元の金額の通貨コード
    * @param rate 為替レート
-   * @returns 
+   * @returns
    */
   const convertToBaseCurrency = (amount: number, currency: string, rate?: number): number => {
     if (currency === baseCurrency || !rate || rate === 0) {
@@ -170,29 +175,98 @@ const PaymentHistoryPage = () => {
   // 状態の追加
   const [selectedPayment, setSelectedPayment] = useState<Payment | undefined>();
 
+  // 支払い記録の作成
+  const createPaymentMutation = useMutation({
+    mutationFn: (data: z.infer<typeof paymentCreateSchema>) => api.post('/payments', data),
+    onSuccess: () => {
+      toast.success('支払い記録を作成しました。');
+      queryClient.invalidateQueries({ queryKey: ['paymentHistory'] });
+      setDrawerOpen(false);
+    },
+    onError: (error: CustomApiError) => {
+      toast.error(error.message || '支払い記録の作成に失敗しました。');
+    },
+  });
+
+  // 支払い記録の更新
+  const updatePaymentMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: z.infer<typeof paymentUpdateSchema> }) =>
+      api.patch(`/payments/${id}`, data),
+    onSuccess: () => {
+      toast.success('支払い記録を更新しました。');
+      queryClient.invalidateQueries({ queryKey: ['paymentHistory'] });
+      setDrawerOpen(false);
+    },
+    onError: (error: CustomApiError) => {
+      toast.error(error.message || '支払い記録の更新に失敗しました。');
+    },
+  });
+
+  // 支払い記録の削除
+  const deletePaymentMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/payments/${id}`),
+    onSuccess: () => {
+      toast.success('支払い記録を削除しました。');
+      queryClient.invalidateQueries({ queryKey: ['paymentHistory'] });
+      setDrawerOpen(false);
+    },
+    onError: (error: CustomApiError) => {
+      toast.error(error.message || '支払い記録の削除に失敗しました。');
+    },
+  });
+
   // 支払い記録の処理ハンドラ
   const handlePaymentSubmit = (data: z.infer<typeof payHistoryFormSchema>) => {
+    const commonData = {
+      amount: Number(data.amount),
+      payment_date: format(data.paymentDate, 'yyyy-MM-dd'),
+      currency: data.currency,
+      payment_method: data.paymentMethod, // キーをスネークケースに修正
+    };
+
     if (selectedPayment) {
       // 編集の場合
-      console.log('Update payment:', { id: selectedPayment.id, ...data });
+      try {
+        const parsedData = paymentUpdateSchema.parse(commonData);
+        updatePaymentMutation.mutate({ id: selectedPayment.paymentId, data: parsedData });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          console.error('Validation Error:', error.errors);
+          toast.error('入力内容に誤りがあります。');
+        }
+      }
     } else {
       // 新規作成の場合
-      console.log('Create payment:', data);
+      try {
+        const parsedData = paymentCreateSchema.parse({
+          ...commonData,
+          subscription_id: data.subscriptionId,
+        });
+        createPaymentMutation.mutate(parsedData);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          console.error('Validation Error:', error.errors);
+          toast.error('入力内容に誤りがあります。');
+        }
+      }
     }
   };
 
   // 支払い記録の削除
   const handlePaymentDelete = () => {
     if (selectedPayment) {
-      console.log('Delete payment:', selectedPayment.id);
-      setSelectedPayment(undefined);
-      setDrawerOpen(false);
+      deletePaymentMutation.mutate(selectedPayment.paymentId);
     }
   };
 
   // テーブル行のクリックハンドラ
   const handleRowClick = (payment: Payment) => {
     setSelectedPayment(payment);
+    setDrawerOpen(true);
+  };
+
+  const handleCreateClick = () => {
+    setSelectedPayment(undefined);
     setDrawerOpen(true);
   };
 
@@ -205,17 +279,17 @@ const PaymentHistoryPage = () => {
   // フロントで既に取得した支払い一覧から選択可能な年/月を抽出する（API がない場合のフォールバック）
   const availableYears = useMemo(() => {
     const years = new Set<number>();
-    paymentHistory.forEach(p => years.add(new Date(p.paymentDate).getFullYear()));
-    return Array.from(years).sort((a,b)=>b-a); // 新しい順
+    paymentHistory.forEach((p) => years.add(new Date(p.paymentDate).getFullYear()));
+    return Array.from(years).sort((a, b) => b - a); // 新しい順
   }, [paymentHistory]);
 
   const availableMonthsForYear = (year: number) => {
     const months = new Set<number>();
-    paymentHistory.forEach(p => {
+    paymentHistory.forEach((p) => {
       const d = new Date(p.paymentDate);
       if (d.getFullYear() === year) months.add(d.getMonth());
     });
-    return Array.from(months).sort((a,b)=>a-b);
+    return Array.from(months).sort((a, b) => a - b);
   };
 
   // Set the selected year and month to the latest payment record upon initial data load.
@@ -258,7 +332,7 @@ const PaymentHistoryPage = () => {
         <div className="mb-6 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-gray-900">支払い履歴</h2>
-            <Button onClick={() => setDrawerOpen(true)}>
+            <Button onClick={handleCreateClick}>
               <AddRoundedIcon />
               <span className="ml-2">支払いを記録</span>
             </Button>
@@ -298,7 +372,6 @@ const PaymentHistoryPage = () => {
                         <SelectItem
                           key={i + 1}
                           value={(i + 1).toString()}
-
                         >
                           {i + 1}月
                         </SelectItem>
@@ -430,12 +503,12 @@ const PaymentHistoryPage = () => {
                   payment.currency === baseCurrency
                     ? ''
                     : payment.currency === 'USD'
-                      ? `$${payment.amount.toFixed(2)}`
-                      : `${payment.currency} ${payment.amount}`;
+                    ? `$${payment.amount.toFixed(2)}`
+                    : `${payment.currency} ${payment.amount}`;
 
                 return (
                   <TableRow
-                    key={payment.id}
+                    key={payment.paymentId}
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => handleRowClick(payment)}
                   >
@@ -499,6 +572,9 @@ const PaymentHistoryPage = () => {
         onSubmit={handlePaymentSubmit}
         onDelete={selectedPayment ? handlePaymentDelete : undefined}
         subscriptions={subscriptions}
+        isCreating={createPaymentMutation.isPending}
+        isUpdating={updatePaymentMutation.isPending}
+        isDeleting={deletePaymentMutation.isPending}
       />
     </div>
   );

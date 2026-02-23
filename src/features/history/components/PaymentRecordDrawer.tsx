@@ -4,9 +4,20 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -39,6 +50,7 @@ export const payHistoryFormSchema = z.object({
   }),
   paymentMethod: z.string().min(1, { message: '支払い方法を選択してください' }),
   amount: z.string().min(1, { message: '金額を入力してください' }),
+  currency: z.string().default('JPY'),
 });
 
 const paymentMethods = [
@@ -55,6 +67,9 @@ interface PaymentRecordDrawerProps {
   onSubmit: (data: z.infer<typeof payHistoryFormSchema>) => void;
   onDelete?: () => void;
   subscriptions: SubscriptionSummary[];
+  isCreating?: boolean;
+  isUpdating?: boolean;
+  isDeleting?: boolean;
 }
 
 const PaymentRecordDrawer = ({
@@ -65,9 +80,13 @@ const PaymentRecordDrawer = ({
   onSubmit,
   onDelete,
   subscriptions,
+  isCreating = false,
+  isUpdating = false,
+  isDeleting = false,
 }: PaymentRecordDrawerProps) => {
-  const [isEditing, setIsEditing] = useState(mode === 'edit');
-  const [currency, setCurrency] = useState('JPY');
+  const [isEditing, setIsEditing] = useState(mode === 'edit' || mode === 'create');
+
+  const isLoading = isCreating || isUpdating || isDeleting;
 
   const currencies = [
     { value: 'JPY', label: '¥ (JPY)', symbol: '¥' },
@@ -82,12 +101,14 @@ const PaymentRecordDrawer = ({
         paymentDate: new Date(paymentRecord.paymentDate),
         paymentMethod: paymentRecord.paymentMethod,
         amount: paymentRecord.amount.toString(),
+        currency: paymentRecord.currency || 'JPY',
       }
     : {
         subscriptionId: '',
         paymentDate: new Date(),
         paymentMethod: '',
         amount: '',
+        currency: 'JPY',
       };
 
   const form = useForm<z.infer<typeof payHistoryFormSchema>>({
@@ -95,30 +116,34 @@ const PaymentRecordDrawer = ({
     defaultValues,
   });
 
-  // フォームの金額を監視して換算表示に使用 (useStateの代わり)
+  // フォームの値を監視して換算表示に使用
   const watchedAmount = useWatch({ control: form.control, name: 'amount' });
+  const watchedCurrency = useWatch({ control: form.control, name: 'currency' });
 
-  // paymentRecordが変更されたときにフォームの値をリセット
+  // paymentRecordまたはmodeが変更されたときにフォームの状態をリセット
   useEffect(() => {
-    if (paymentRecord) {
-      form.reset({
-        subscriptionId: String(paymentRecord.subscriptionId),
-        paymentDate: new Date(paymentRecord.paymentDate),
-        paymentMethod: paymentRecord.paymentMethod,
-        amount: paymentRecord.amount.toString(),
-      });
-    } else {
-      form.reset({
-        subscriptionId: '',
-        paymentDate: new Date(),
-        paymentMethod: '',
-        amount: '',
-      });
+    if (open) {
+      if (paymentRecord) {
+        form.reset({
+          subscriptionId: String(paymentRecord.subscriptionId),
+          paymentDate: new Date(paymentRecord.paymentDate),
+          paymentMethod: paymentRecord.paymentMethod,
+          amount: paymentRecord.amount.toString(),
+          currency: paymentRecord.currency || 'JPY',
+        });
+        setIsEditing(mode === 'edit');
+      } else {
+        form.reset({
+          subscriptionId: '',
+          paymentDate: new Date(),
+          paymentMethod: '',
+          amount: '',
+          currency: 'JPY',
+        });
+        setIsEditing(true);
+      }
     }
-  }, [paymentRecord, form]);
-
-  // 選択されたサブスクリプションの情報を取得
-  // const selectedSubscription = subscriptions.find((s) => s.id === form.watch('subscriptionId'));
+  }, [paymentRecord, mode, open, form]);
 
   // サブスクリプション変更時の処理
   const handleSubscriptionChange = (value: string, onChange: (value: string) => void) => {
@@ -132,24 +157,15 @@ const PaymentRecordDrawer = ({
 
   // 編集モードの切り替え
   const handleEditToggle = () => {
-    setIsEditing(!isEditing);
-    if (!isEditing) {
-      // 編集モードに入る時、現在の値をフォームに設定
-      form.reset(defaultValues);
-    }
+    setIsEditing(true);
   };
 
   // フォーム送信処理
   const handleSubmit = (values: z.infer<typeof payHistoryFormSchema>) => {
     onSubmit(values);
-    if (mode === 'edit') {
-      setIsEditing(false);
-    }
-    setIsEditing(false);
-    onOpenChange(false);
   };
 
-  const ActionButtons = () => {
+  const renderActionButtons = () => {
     // 新規作成モード
     if (mode === 'create') {
       return (
@@ -158,10 +174,17 @@ const PaymentRecordDrawer = ({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isLoading}
           >
             キャンセル
           </Button>
-          <Button type="submit">保存</Button>
+          <Button
+            type="submit"
+            disabled={isLoading}
+          >
+            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            保存
+          </Button>
         </>
       );
     }
@@ -178,10 +201,17 @@ const PaymentRecordDrawer = ({
                 setIsEditing(false);
                 form.reset(); // フォームをリセット
               }}
+              disabled={isLoading}
             >
               キャンセル
             </Button>
-            <Button type="submit">保存</Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+            >
+              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              保存
+            </Button>
           </>
         );
       } else {
@@ -190,17 +220,40 @@ const PaymentRecordDrawer = ({
             <Button
               type="button"
               onClick={handleEditToggle}
+              disabled={isLoading}
             >
               編集
             </Button>
             {onDelete && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={onDelete}
-              >
-                削除
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={isLoading}
+                  >
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    削除
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>本当に削除しますか？</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      この操作は取り消せません。この支払い記録は永久に削除されます。
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={onDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      削除
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </>
         );
@@ -228,7 +281,7 @@ const PaymentRecordDrawer = ({
                       'w-full pl-3 text-left font-normal',
                       !field.value && 'text-muted-foreground',
                     )}
-                    disabled={!isEditing && mode !== 'create'}
+                    disabled={!isEditing}
                   >
                     {field.value ? (
                       format(field.value, 'PPP', { locale: ja })
@@ -266,7 +319,7 @@ const PaymentRecordDrawer = ({
             <Select
               onValueChange={(val) => handleSubscriptionChange(val, field.onChange)}
               value={field.value}
-              disabled={!isEditing && mode !== 'create'}
+              disabled={!isEditing}
             >
               <FormControl>
                 <SelectTrigger>
@@ -302,7 +355,7 @@ const PaymentRecordDrawer = ({
                   <div className="flex">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <span className="text-gray-500 sm:text-sm">
-                        {currencies.find((c) => c.value === currency)?.symbol}
+                        {currencies.find((c) => c.value === (watchedCurrency || 'JPY'))?.symbol}
                       </span>
                     </div>
                     <FormControl>
@@ -311,22 +364,21 @@ const PaymentRecordDrawer = ({
                         {...field}
                         className="block w-full pl-7 pr-12 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         step={1}
-                        disabled={!isEditing && mode !== 'create'}
+                        disabled={!isEditing}
                       />
                     </FormControl>
                     <div className="absolute inset-y-0 right-0 flex items-center">
                       <select
-                        value={currency}
-                        onChange={(e) => setCurrency(e.target.value)}
+                        {...form.register('currency')}
                         className="h-full py-0 pl-2 pr-7 border-transparent bg-transparent text-gray-500 sm:text-sm rounded-md focus:ring-2 focus:ring-blue-500"
-                        disabled={!isEditing && mode !== 'create'}
+                        disabled={!isEditing}
                       >
-                        {currencies.map((currency) => (
+                        {currencies.map((c) => (
                           <option
-                            key={currency.value}
-                            value={currency.value}
+                            key={c.value}
+                            value={c.value}
                           >
-                            {currency.value}
+                            {c.value}
                           </option>
                         ))}
                       </select>
@@ -335,13 +387,13 @@ const PaymentRecordDrawer = ({
                 </div>
               </div>
               <div className="text-sm text-gray-500">
-                {currency !== 'JPY' && (
+                {watchedCurrency !== 'JPY' && (
                   <div className="mt-2">
                     <span className="font-medium">換算金額（JPY）:</span>
                     <span className="ml-2">
                       ¥{' '}
                       {(
-                        Number(watchedAmount || 0) * (currency === 'USD' ? 148.5 : 160.2)
+                        Number(watchedAmount || 0) * (watchedCurrency === 'USD' ? 148.5 : 160.2)
                       ).toLocaleString()}
                     </span>
                   </div>
@@ -363,7 +415,7 @@ const PaymentRecordDrawer = ({
             <Select
               onValueChange={field.onChange}
               defaultValue={field.value}
-              disabled={!isEditing && mode !== 'create'}
+              disabled={!isEditing}
             >
               <FormControl>
                 <SelectTrigger>
@@ -388,7 +440,7 @@ const PaymentRecordDrawer = ({
 
       {/* アクションボタン */}
       <SheetFooter className="gap-4 pt-4">
-        <ActionButtons />
+        {renderActionButtons()}
       </SheetFooter>
     </div>
   );
@@ -396,7 +448,13 @@ const PaymentRecordDrawer = ({
   return (
     <Sheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          form.reset();
+          setIsEditing(false);
+        }
+        onOpenChange(isOpen);
+      }}
     >
       <SheetContent className="w-full sm:max-w-[540px] overflow-y-auto">
         <Form {...form}>
@@ -406,7 +464,11 @@ const PaymentRecordDrawer = ({
           >
             <SheetHeader>
               <SheetTitle>
-                {mode === 'create' ? '支払いを記録' : isEditing ? '支払い記録を編集' : '支払い詳細'}
+                {mode === 'create'
+                  ? '支払いを記録'
+                  : isEditing
+                  ? '支払い記録を編集'
+                  : '支払い詳細'}
               </SheetTitle>
             </SheetHeader>
             {renderFormFields()}
