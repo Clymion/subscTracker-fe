@@ -18,14 +18,20 @@
 				"Gruntfuggly.todo-tree",
 				"github.copilot",
 				"GitHub.vscode-pull-request-github",
-				"saoudrizwan.claude-dev",
-				"humao.rest-client",
-				"Google.gemini-cli-vscode-ide-companion",
-				"google.geminicodeassist"
+				"humao.rest-client"
 			]
         }
     },
-    "postCreateCommand": "npx --yes cc-sdd@latest --gemini --lang ja",
+    "postCreateCommand": "mkdir -p ~/.npm-global && npm config set prefix '~/.npm-global' && npm install -g @anthropic-ai/claude-code && npx --yes cc-sdd@latest --lang ja",
+    "remoteEnv": {
+        "PATH": "${containerEnv:PATH}:/home/node/.npm-global/bin",
+        "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+        "ANTHROPIC_AUTH_TOKEN": "${localEnv:OPENROUTER_API_KEY}",
+        "ANTHROPIC_API_KEY": "",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "z-ai/glm-5-turbo",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "z-ai/glm-5",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "moonshotai/kimi-k2.5"
+    },
 
 	"remoteUser": "node"
 }
