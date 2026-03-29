@@ -127,7 +127,7 @@ const MainPage = () => {
         return 0;
       }
       const rate = exchangeRates.rates[sub.currency];
-      return sum + sub.displayPrice / rate;
+      return sum + sub.displayPrice * rate;
     }, 0);
   }, [displaySubscriptions, exchangeRates, baseCurrency]);
 

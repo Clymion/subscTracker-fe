@@ -16,6 +16,9 @@ services:
     tty: true
     stdin_open: true
     command: ["pnpm", "dev"]
+    # Claude Code Hooksによるホストへの通知のために開放
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   pnpm-store:

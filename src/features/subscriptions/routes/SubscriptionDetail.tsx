@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useForm, useWatch } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router-dom';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import EventRepeatRoundedIcon from '@mui/icons-material/EventRepeatRounded';
 import TodayRoundedIcon from '@mui/icons-material/TodayRounded';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { toast, Toaster } from 'sonner';
@@ -15,6 +17,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -26,31 +36,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { SubscriptionFrequency, SubscriptionStatus } from '@/constants/subscription';
+import { SubscriptionFrequency } from '@/constants/subscription';
 import { LabelListResponse, LabelType } from '@/features/labels/types';
 import { SubscriptionUpdateRequestSchema } from '@/features/subscriptions/schemas';
 import { SubscriptionResponse, SubscriptionUpdateRequest } from '@/features/subscriptions/types';
 import { api } from '@/lib/api-client';
 
+const subscriptionDetailFormSchema = SubscriptionUpdateRequestSchema;
+
 const SubscriptionDetail = () => {
-  type ValueOf<T> = T[keyof T];
   const { id } = useParams();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<SubscriptionUpdateRequest>({
-    id: id || '',
-    name: '',
-    price: 0,
-    currency: 'JPY',
-    paymentFrequency: SubscriptionFrequency.MONTHLY,
-    initialPaymentDate: null,
-    nextPaymentDate: null,
-    paymentMethod: 'credit_card',
-    labels: [],
-    url: '',
-    notes: '',
-    status: SubscriptionStatus.ACTIVE,
-  });
+  const queryClient = useQueryClient();
 
   /**
    * @var availableLabels - 利用可能なラベル一覧
@@ -71,14 +69,18 @@ const SubscriptionDetail = () => {
     queryFn: async () => {
       if (!id) throw new Error('Subscription ID is required');
       const response = await api.get<SubscriptionResponse>(`/subscriptions/${id}`);
-      const _formData: SubscriptionUpdateRequest = {
-        ...response.data,
-        id: String(response.data.id),
-        labels: response.data.labels.map((label) => String(label.labelId)),
-      };
-      setFormData(_formData);
+      response.data.id = String(response.data.id);
       return response.data || null;
     },
+  });
+
+  const form = useForm<SubscriptionUpdateRequest>({
+    resolver: zodResolver(subscriptionDetailFormSchema),
+    values: subscription ? {
+      ...subscription,
+      id: String(subscription.id),
+      labels: subscription.labels.map((label) => String(label.labelId)),
+    } : undefined,
   });
 
   /** @var updateMutation - サブスクリプション編集のミューテーション */
@@ -94,18 +96,13 @@ const SubscriptionDetail = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      const _formData: SubscriptionUpdateRequest = {
-        ...data,
-        id: String(data.id),
-        labels: data.labels.map((label) => String(label.labelId)),
-      };
-      setFormData(_formData);
+      queryClient.setQueryData([`subscription/${id}`], data);
       toast.success('サブスクリプションを更新しました');
     },
     onError: () => {
       toast.error('サブスクリプションの更新に失敗しました');
       console.error('Failed to update subscription:');
-      console.error(formData);
+      console.error(form.getValues());
     },
   });
 
@@ -127,18 +124,21 @@ const SubscriptionDetail = () => {
   // ラベルの選択/解除
   const toggleLabel = (label: string) => {
     if (!isEditing) return;
-    setFormData((prev) => ({
-      ...prev,
-      labels: prev.labels.includes(label)
-        ? prev.labels.filter((l) => l !== label)
-        : [...prev.labels, label],
-    }));
+    const currentLabels = form.getValues('labels');
+    form.setValue('labels',
+      currentLabels.includes(label)
+        ? currentLabels.filter((l) => l !== label)
+        : [...currentLabels, label]
+    );
   };
+
+  // フォーム値の監視
+  const watchedLabels = useWatch({ control: form.control, name: 'labels' });
 
   // 保存処理
   const handleSave = async () => {
     // バリデーションチェック
-    const validation = SubscriptionUpdateRequestSchema.safeParse(formData);
+    const validation = SubscriptionUpdateRequestSchema.safeParse(form.getValues());
     if (!validation.success) {
       const errorMessages = validation.error.errors
         .map((err) => `${err.path[0]}: ${err.message}`)
@@ -150,13 +150,7 @@ const SubscriptionDetail = () => {
     }
 
     updateMutation.mutate({
-      ...formData,
-      initialPaymentDate: formData.initialPaymentDate
-        ? format(formData.initialPaymentDate, 'yyyy-MM-dd')
-        : null,
-      nextPaymentDate: formData.nextPaymentDate
-        ? format(formData.nextPaymentDate, 'yyyy-MM-dd')
-        : null,
+      ...form.getValues(),
     });
     setIsEditing(false);
   };
@@ -169,7 +163,7 @@ const SubscriptionDetail = () => {
         id: String(subscription.id),
         labels: subscription.labels.map((label) => String(label.labelId)),
       };
-      setFormData(_formData);
+      form.reset(_formData);
     }
     setIsEditing(false);
   };
@@ -266,259 +260,275 @@ const SubscriptionDetail = () => {
         position="bottom-right"
       />
       <div className="max-w-4xl mx-auto px-4">
-        {/* ヘッダー */}
-        {commonHeader()}
+        <Form {...form}>
+          {/* ヘッダー */}
+          {commonHeader()}
 
-        {/* メインコンテンツ */}
-        <div className="space-y-6">
-          <>
-            {/* 基本情報カード */}
-            <Card>
-              <CardContent className="p-6 space-y-6">
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">基本情報</h2>
-                  {/* id */}
-                  <Input
-                    type="hidden"
-                    value={formData.id}
-                  />
+          {/* メインコンテンツ */}
+          <div className="space-y-6">
+            <>
+              {/* 基本情報カード */}
+              <Card>
+                <CardContent className="p-6 space-y-6">
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold">基本情報</h2>
 
-                  {/* サービス名 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="name">サービス名</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                      disabled={!isEditing}
+                    {/* サービス名 */}
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>サービス名</FormLabel>
+                          <FormControl>
+                            <Input {...field} disabled={!isEditing} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
 
-                  {/* 料金と通貨 */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="price">料金</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        value={formData.price}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            price: Number(e.target.value),
-                          }))
-                        }
-                        disabled={!isEditing}
+                    {/* 料金と通貨 */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>料金</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) => field.onChange(Number(e.target.value))}
+                                disabled={!isEditing}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="currency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>通貨</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              disabled={!isEditing}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="JPY">JPY - 日本円</SelectItem>
+                                <SelectItem value="USD">USD - 米ドル</SelectItem>
+                                <SelectItem value="EUR">EUR - ユーロ</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
                     </div>
+
+                    {/* ラベル */}
                     <div className="space-y-2">
-                      <Label htmlFor="currency">通貨</Label>
-                      <Select
-                        value={formData.currency}
-                        onValueChange={(value) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            currency: value,
-                          }))
-                        }
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="JPY">JPY - 日本円</SelectItem>
-                          <SelectItem value="USD">USD - 米ドル</SelectItem>
-                          <SelectItem value="EUR">EUR - ユーロ</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>ラベル</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {isLoadingLabels && <span className="text-gray-500">読み込み中...</span>}
+                        {!isLoadingLabels && availableLabels.length === 0 && (
+                          <span className="text-gray-500">利用可能なラベルがありません</span>
+                        )}
+                        {!isLoading &&
+                          availableLabels.length > 0 &&
+                          availableLabels.map((label) => (
+                            <Badge
+                              key={label.id}
+                              variant={
+                                watchedLabels?.includes(String(label.id)) ? 'default' : 'outline'
+                              }
+                              className={isEditing ? 'cursor-pointer' : ''}
+                              onClick={() => toggleLabel(String(label.id))}
+                            >
+                              {label.name}
+                            </Badge>
+                          ))}
+                      </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
 
-                  {/* ラベル */}
-                  <div className="space-y-2">
-                    <Label>ラベル</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {isLoadingLabels && <span className="text-gray-500">読み込み中...</span>}
-                      {!isLoadingLabels && availableLabels.length === 0 && (
-                        <span className="text-gray-500">利用可能なラベルがありません</span>
-                      )}
-                      {!isLoading &&
-                        availableLabels.length > 0 &&
-                        availableLabels.map((label) => (
-                          <Badge
-                            key={label.id}
-                            variant={
-                              formData.labels.includes(String(label.id)) ? 'default' : 'outline'
-                            }
-                            className={isEditing ? 'cursor-pointer' : ''}
-                            onClick={() => toggleLabel(String(label.id))}
+              {/* 支払い情報カード */}
+              <Card>
+                <CardContent className="p-6 space-y-6">
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold">支払い情報</h2>
+
+                    {/* 支払い頻度 */}
+                    <FormField
+                      control={form.control}
+                      name="paymentFrequency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>支払い頻度</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            disabled={!isEditing}
                           >
-                            {label.name}
-                          </Badge>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value={SubscriptionFrequency.MONTHLY}>毎月</SelectItem>
+                              <SelectItem value={SubscriptionFrequency.YEARLY}>毎年</SelectItem>
+                              <SelectItem value={SubscriptionFrequency.DAILY}>毎週</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-            {/* 支払い情報カード */}
-            <Card>
-              <CardContent className="p-6 space-y-6">
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">支払い情報</h2>
+                    {/* 初回支払日 */}
+                    <FormField
+                      control={form.control}
+                      name="initialPaymentDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>初回支払日</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-start text-left font-normal"
+                                  disabled={!isEditing}
+                                >
+                                  <TodayRoundedIcon />
+                                  {field.value
+                                    ? format(new Date(field.value.replace(/-/g, '/')), 'PPP', { locale: ja })
+                                    : '未設定'}
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                defaultMonth={field.value ? new Date(field.value.replace(/-/g, '/')) : new Date()}
+                                selected={field.value ? new Date(field.value.replace(/-/g, '/')) : undefined}
+                                onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : null)}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {/* 支払い頻度 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="frequency">支払い頻度</Label>
-                    <Select
-                      value={formData.paymentFrequency}
-                      onValueChange={(value) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          frequency: value as ValueOf<typeof SubscriptionFrequency>,
-                        }))
-                      }
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={SubscriptionFrequency.MONTHLY}>毎月</SelectItem>
-                        <SelectItem value={SubscriptionFrequency.YEARLY}>毎年</SelectItem>
-                        <SelectItem value={SubscriptionFrequency.DAILY}>毎週</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    {/* 次回支払日 */}
+                    <FormField
+                      control={form.control}
+                      name="nextPaymentDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>次回支払日</FormLabel>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                            disabled={true}
+                          >
+                            <EventRepeatRoundedIcon />
+                            {field.value
+                              ? format(new Date(field.value.replace(/-/g, '/')), 'PPP', { locale: ja })
+                              : '未設定'}
+                          </Button>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {/* 初回支払日 */}
-                  <div className="space-y-2">
-                    <Label>初回支払日</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                          disabled={!isEditing}
-                        >
-                          <TodayRoundedIcon />
-                          {formData.initialPaymentDate
-                            ? format(new Date(formData.initialPaymentDate.replace(/-/g, '/')), 'PPP', { locale: ja })
-                            : '未設定'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          month={
-                            formData.initialPaymentDate
-                              ? new Date(formData.initialPaymentDate.replace(/-/g, '/'))
-                              : new Date()
-                          }
-                          selected={
-                            formData.initialPaymentDate
-                              ? new Date(formData.initialPaymentDate.replace(/-/g, '/'))
-                              : undefined
-                          }
-                          onSelect={(date) =>
-                            date &&
-                            setFormData((prev) => ({
-                              ...prev,
-                              initialPaymentDate: date ? format(date, 'yyyy-MM-dd') : null,
-                            }))
-                          }
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  {/* 次回支払日 */}
-                  <div className="space-y-2">
-                    <Label>次回支払日</Label>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                      disabled={true}
-                    >
-                      <EventRepeatRoundedIcon />
-                      {formData.nextPaymentDate
-                        ? format(formData.nextPaymentDate, 'PPP', { locale: ja })
-                        : '未設定'}
-                    </Button>
-                  </div>
-
-                  {/* 支払い方法 */}
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentMethod">支払い方法</Label>
-                    <Select
-                      value={formData.paymentMethod}
-                      onValueChange={(value) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          paymentMethod: value,
-                        }))
-                      }
-                      disabled={!isEditing}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="credit_card">クレジットカード</SelectItem>
-                        <SelectItem value="bank_transfer">銀行振込</SelectItem>
-                        <SelectItem value="convenience_store">コンビニ決済</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* その他情報カード */}
-            <Card>
-              <CardContent className="p-6 space-y-6">
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">その他情報</h2>
-
-                  {/* URL */}
-                  <div className="space-y-2">
-                    <Label htmlFor="url">URL</Label>
-                    <Input
-                      id="url"
-                      type="url"
-                      value={formData.url}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          url: e.target.value,
-                        }))
-                      }
-                      disabled={!isEditing}
+                    {/* 支払い方法 */}
+                    <FormField
+                      control={form.control}
+                      name="paymentMethod"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>支払い方法</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            disabled={!isEditing}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="credit_card">クレジットカード</SelectItem>
+                              <SelectItem value="bank_transfer">銀行振込</SelectItem>
+                              <SelectItem value="convenience_store">コンビニ決済</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
+                </CardContent>
+              </Card>
 
-                  {/* メモ */}
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">メモ</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          notes: e.target.value,
-                        }))
-                      }
-                      disabled={!isEditing}
+              {/* その他情報カード */}
+              <Card>
+                <CardContent className="p-6 space-y-6">
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold">その他情報</h2>
+
+                    {/* URL */}
+                    <FormField
+                      control={form.control}
+                      name="url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URL</FormLabel>
+                          <FormControl>
+                            <Input type="url" {...field} disabled={!isEditing} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* メモ */}
+                    <FormField
+                      control={form.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>メモ</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} disabled={!isEditing} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        </div>
+                </CardContent>
+              </Card>
+            </>
+          </div>
+        </Form>
       </div>
     </div>
   );
